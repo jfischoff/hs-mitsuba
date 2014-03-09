@@ -486,7 +486,7 @@ data Shape = Shape
 instance ToElement Shape where
    toElement Shape {..} = 
      let shapeTypeElement = toElement shapeType 
-     tag "shape" & tagType .~ type="{toShapeTypeName shapeType}">
+     tag "shape" & tagType .~ (shapeTypeElement .^ tagType)
             {toXMLElements shapeType}
             {fmap toXML shapeMaterial}
             {toXMLElements shapeMediumPair}
