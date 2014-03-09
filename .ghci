@@ -1,0 +1,2 @@
+:set -i./src -i./tests
+:load src/Mitsuba/Types.hs
