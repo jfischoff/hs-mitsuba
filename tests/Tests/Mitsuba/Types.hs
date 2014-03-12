@@ -4,7 +4,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Tests.Mitsuba.Types where
 import Mitsuba.Types
-import Mitsuba.Class
+import Mitsuba.Element
 import Mitsuba.XML
 import Test.Tasty
 import Test.Tasty.HUnit
