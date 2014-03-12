@@ -16,7 +16,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Mitsuba.Class, Mitsuba.Types
+  exposed-modules: Mitsuba.Element.Class
+                 , Mitsuba.Element.Types
+                 , Mitsuba.Element
+                 , Mitsuba.Generic
+                 , Mitsuba.LensTH
+                 , Mitsuba.Types
   -- other-modules:       
   other-extensions:    ExtendedDefaultRules, OverloadedStrings
   build-depends: base >=4.6 && <4.7

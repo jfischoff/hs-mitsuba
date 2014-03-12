@@ -42,6 +42,7 @@ class ToElement a where
    default toElement :: (Generic a, GToElement (Rep a)) => a -> Element
    toElement = defaultGeneric
    
+defaultGeneric :: (Generic a, GToElement (Rep a)) => a -> Element
 defaultGeneric = makeGElement . gToElement . from
    
 instance ToElement Text where

@@ -10,8 +10,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE StandaloneDeriving #-}
 module Mitsuba.Types where
---import Mitsuba.Class
-
 import Mitsuba.Element hiding (Visibility (Hidden))
 import Control.Lens hiding ((#), (.>))
 import Control.Lens.Fold
@@ -350,6 +348,7 @@ data Transform
 instance ToElement Transform where
    toElement = forwardToElement
 
+tshow :: Show a => a -> Text
 tshow = T.pack . show
 
 data Alias a = Alias
@@ -380,7 +379,8 @@ data Channel
    | Z
    | All
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Bounded, Enum)
-   
+
+defaultShowInstance :: Show a => a -> Element
 defaultShowInstance = toElement . T.toLower . T.pack . show
    
 instance ToElement Channel where
