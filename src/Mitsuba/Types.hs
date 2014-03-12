@@ -6,13 +6,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Mitsuba.Types where
-import Mitsuba.Primitive
-import Mitsuba.Class
-import Control.Lens hiding ((#))
+--import Mitsuba.Class
+
+import Mitsuba.Element hiding (Visibility (Hidden))
+import Control.Lens hiding ((#), (.>))
 import Control.Lens.Fold
 import Data.Word
-import Data.Text.Format
+import Data.Text.Format 
 import Data.Double.Conversion.Text
 import Control.Applicative
 import Data.Monoid
@@ -24,18 +28,146 @@ import Data.Text (Text)
 import Text.Blaze
 import Data.List
 import qualified Data.HashMap.Strict as H
+import Control.Arrow hiding (left)
+import qualified Data.Foldable as F
+import Data.Maybe
 default (Text, Integer, Double)
 
-newtype Ref a = Ref { unRef :: String }
+type Wavelength = Double
+type Amplitude  = Double
+
+newtype WavelengthStyle = 
+   WavelengthStyle { unWavelengthStyle :: [(Wavelength, Amplitude)] }
+      deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+data InternalSpectralFormat = InternalSpectralFormat
+   { isfA :: Double
+   , isfB :: Double
+   , isfC :: Double
+   , isfD :: Double
+   , isfE :: Double
+   , isfF :: Double
+   , isfG :: Double
+   , isfH :: Double
+   , isfI :: Double
+   , isfJ :: Double
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Each InternalSpectralFormat InternalSpectralFormat Double Double where
+   each func InternalSpectralFormat {..} 
+       =  InternalSpectralFormat
+      <$> func isfA
+      <*> func isfB
+      <*> func isfC
+      <*> func isfD
+      <*> func isfE
+      <*> func isfF
+      <*> func isfG
+      <*> func isfH
+      <*> func isfI 
+      <*> func isfJ 
+
+data RGBTriple = RGBTriple
+   { rgbTripleR :: Double
+   , rgbTripleG :: Double
+   , rgbTripleB :: Double
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Each RGBTriple RGBTriple Double Double where
+   each f RGBTriple {..} 
+       =  RGBTriple 
+      <$> f rgbTripleR
+      <*> f rgbTripleG
+      <*> f rgbTripleB
+
+data Hex = Hex Word8 Word8 Word8
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Each Hex Hex Word8 Word8 where
+   each f (Hex a b c) = Hex <$> f a <*> f b <*> f c
+
+listOf :: s -> Getting (Data.Monoid.Endo [a]) s a -> [a]
+listOf = (^..)
+
+data RGBLike 
+   = RGBLTriple RGBTriple
+   | RGBLHex    Hex
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+newtype Temperature = Temperature { unTemperature :: Integer }
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+data Blackbody = Blackbody 
+   { blackBodyTemperature :: Temperature
+   , blackBodyScale       :: Double
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+data Spectrum 
+   = SWavelengths WavelengthStyle
+   | SUniform     Double
+   | SInternal    InternalSpectralFormat
+   | SRGB         RGBLike
+   | SSRGB        RGBLike
+   | SFile        FilePath
+   | SBlackbody   Blackbody
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+format' x = TL.toStrict . format x
+
+instance ToAttributeValue WavelengthStyle where
+   toAttributeValue = T.intercalate ", "
+           . map (\(x, y) -> toFixed 0 x <> ":" <> toFixed 2 y)
+           . unWavelengthStyle
+
+instance ToAttributeValue InternalSpectralFormat where
+  toAttributeValue 
+      = T.intercalate ", "
+      . map (T.drop 1 . toFixed 1) 
+      . toListOf each
+
+instance ToAttributeValue RGBTriple where
+   toAttributeValue 
+      = T.intercalate ", "
+      . map (toFixed 3)
+      . toListOf each
+
+instance ToAttributeValue RGBLike where
+   toAttributeValue = forwardToAttributeValue
+
+instance ToAttributeValue Temperature where
+   toAttributeValue = format' "{}k" . Only . unTemperature
+
+instance ToAttributeValue Hex where
+   toAttributeValue x = 
+      let formatter = left 2 '0' . hex 
+      in TL.toStrict . format "#{}{}{}" $ map formatter $ listOf x each
+
+instance ToElement Spectrum where
+   toElement = \case
+      SWavelengths x -> primitive "spectrum" x
+      SUniform     x -> primitive "spectrum" x
+      SInternal    x -> primitive "spectrum" x
+      SRGB         x -> primitive "rgb"      x
+      SSRGB        x -> primitive "rgb"      x
+      SFile        x -> tag "spectrum"  # ("file", x)
+      SBlackbody   x -> tag "blackbody" 
+                           # ("temperature", blackBodyTemperature x)
+                           # ("scale"      , blackBodyScale       x)
+   
+newtype Ref a = Ref { unRef :: String }
+   deriving(Show, Read, Data, Typeable, Generic)
+   
+instance Eq (Ref a) where
+   Ref x == Ref y = x == y
+   
+instance Ord (Ref a) where
+   Ref x `compare` Ref y = compare x y
 
 instance ToAttributeValue (Ref a) where
    toAttributeValue = toAttributeValue . unRef
 
 instance ToElement (Ref a) where
-   toElement Ref {..} = T $ Tag "ref" Nothing Nothing $ H.fromList 
-      [("id", (P $ Primitive (Named "id" Show) $ String unRef, Attribute))]
-
+   toElement Ref {..} = tag "ref" # ("id", unRef) 
 data Child a 
    = CRef    (Ref a)
    | CNested a
@@ -54,7 +186,11 @@ instance Each Point Point Double Double where
    each f Point {..} = Point <$> f pointX <*> f pointY <*> f pointZ
    
 instance ToElement Point where
-   toElement = allAttribute . defaultGeneric
+   toElement Point {..} 
+      = tag "point"
+         # ("x", pointX)
+         # ("y", pointY)
+         # ("z", pointZ)
 
 data Vector = Vector 
    { vectorX :: Double
@@ -66,7 +202,11 @@ instance Each Vector Vector Double Double where
    each f Vector {..} = Vector <$> f vectorX <*> f vectorY <*> f vectorZ
    
 instance ToElement Vector where
-   toElement = allAttribute . defaultGeneric
+   toElement Vector {..}
+      = tag "vector" 
+         # ("x", vectorX)
+         # ("y", vectorY)
+         # ("z", vectorZ)
 
 data Translate = Translate 
    { translateX :: Double
@@ -82,7 +222,11 @@ instance Each Translate Translate Double Double where
       <*> f translateZ    
 
 instance ToElement Translate where
-   toElement = allAttribute . defaultGeneric
+   toElement Translate {..} 
+      = tag "translate" 
+         # ("x", translateX)
+         # ("y", translateY)
+         # ("z", translateZ)
 
 data Rotate = Rotate
    { rotateX     :: Double
@@ -92,32 +236,23 @@ data Rotate = Rotate
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance ToElement Rotate where
-   toElement = allAttribute . defaultGeneric
+   toElement Rotate {..} 
+      = tag "rotate"
+         # ("x"    , rotateX    )
+         # ("y"    , rotateY    )
+         # ("z"    , rotateZ    )
+         # ("angle", rotateAngle)
 
 data Scale 
-   = SUniformScale UniformScale
-   | SScaleAxis    ScaleAxis
+   = SUniformScale Double
+   | SScaleAxis    Vector
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-data UniformScale = UniformScale
-   { uniformScaleScale :: Double
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance ToElement UniformScale where
-   toElement = allAttribute . defaultGeneric
-   
-data ScaleAxis = ScaleAxis
-   { scaleAxisX :: Double
-   , scaleAxisY :: Double
-   , scaleAxisZ :: Double
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance ToElement ScaleAxis where
-   toElement = allAttribute . defaultGeneric
-
 instance ToElement Scale where
-   toElement = forwardToElement
-
+   toElement = \case
+     SUniformScale x -> primitive "scale" x
+     SScaleAxis    x -> tag "scale" `appendChildren` x
+     
 data Matrix = Matrix
    { m00 :: Double
    , m01 :: Double
@@ -160,7 +295,7 @@ instance Each Matrix Matrix Double Double where
 instance ToElement Matrix where
    toElement m = 
       let values = T.intercalate " " $ map (T.pack . show) $ toListOf each m
-      in T $ tag "matrix" # ("value", values)
+      in tag "matrix" # ("value", values)
 
 data Lookat = Lookat 
    { origin :: Point
@@ -176,7 +311,7 @@ instance ToElement Lookat where
           targetPoint = commaSeperateValues $ toListOf each target
           upVector    = commaSeperateValues $ toListOf each up
 
-      in T $ tag "lookat"
+      in tag "lookat"
              # ("origin", originPoint) 
              # ("target", targetPoint) 
              # ("up"    , upVector   )
@@ -196,15 +331,9 @@ newtype RegularTransform =
    RegularTransform { unRegularTransform :: [TransformCmd] }
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-toNestedChildren :: ToElement a => [a] -> Children
-toNestedChildren
-   = H.fromList 
-   . map (\x -> (view (toNamed . name) x, (x, Nested))) 
-   . map toElement
-
 instance ToElement RegularTransform where
    toElement (RegularTransform xs) = 
-     T $ tag "transform" & tagChildren .~ toNestedChildren xs
+       tag "transform" `addChildList` xs
 
 newtype Animation = Animation {unAnimation :: [(Double, RegularTransform)] }
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -212,9 +341,7 @@ newtype Animation = Animation {unAnimation :: [(Double, RegularTransform)] }
 instance ToElement Animation where
    toElement (Animation xs) 
       = let toKeyframe (k, trans) = toElement trans # ("time", k) 
-      in T $ tag "animation"
-       & tagChildren .~ (toNestedChildren . map toKeyframe) xs
-
+      in tag "animation" `addChildList` map toKeyframe xs
 data Transform 
    = TAnimated Animation
    | TRegular  RegularTransform
@@ -228,10 +355,19 @@ tshow = T.pack . show
 data Alias a = Alias
    { aliasId :: Ref a
    , aliasAs :: String
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   } deriving(Show, Read, Data, Typeable, Generic)
    
+instance Eq (Alias a) where
+   Alias x0 y0 == Alias x1 y1 
+       = x0 == x1 
+      && y0 == y1
+      
+instance Ord (Alias a) where
+   Alias x0 y0 `compare` Alias x1 y1 = 
+      compare (compare x0 x1) (compare y0 y1)
+
 instance ToElement (Alias a) where
-   toElement Alias {..} = T $
+   toElement Alias {..} = 
       tag "alias" # ("id", aliasId) # ("as", aliasAs)
 
 data Channel 
@@ -275,12 +411,6 @@ data CachePolicy = Cache | DontCache
    
 instance ToElement CachePolicy where
    toElement = defaultShowInstance
-   
-data Color = CS Spectrum | CT Texture
-   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance ToElement Color where
-   toElement = forwardToElement
 
 data Bitmap = Bitmap 
    { bitmapFilename      :: FilePath
@@ -323,6 +453,12 @@ data GridTexture = GridTexture
 
 instance ToElement GridTexture
 
+data Color = CS Spectrum | CT Texture
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance ToElement Color where
+   toElement = forwardToElement
+
 data ScaleTexture = ScaleTexture
    { scaleTexture :: Color
    , scaleValue   :: Double
@@ -363,7 +499,6 @@ data Texture
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance ToElement Texture 
-
 
 data Cube = Cube 
    { cubeToWorld     :: Transform
@@ -451,55 +586,6 @@ data Hair = Hair
    
 instance ToElement Hair
 
-data ShapeType 
-   = STCube       Cube
-   | STSphere     Sphere
-   | STRectangle  Rectangle
-   | STDisk       Disk
-   | STOBJ        OBJ
-   | STPLY        PLY
-   | STSerialized Serialized
-   | STGroup      [ShapeType]
-   | STInstance   String
-   | STHair       Hair
-    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-
-instance ToElement ShapeType
-
-data MediumPair = MediumPair 
-   { mediumPairInterior :: Medium
-   , mediumPairExterior :: Medium
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Each MediumPair where
-   each f MediumPair 
-       =  MediumPair 
-      <$> f mediumPairInterior
-      <*> f mediumPairExterior
-   
-data Shape = Shape 
-   { shapeType       :: ShapeType
-   , shapeMaterial   :: Maybe BSDF 
-   , shapeMediumPair :: Maybe MediumPair
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-
-instance ToElement Shape where
-   toElement Shape {..} = 
-     let shapeTypeElement = toElement shapeType 
-     tag "shape" & tagType .~ (shapeTypeElement .^ tagType)
-            {toXMLElements shapeType}
-            {fmap toXML shapeMaterial}
-            {toXMLElements shapeMediumPair}
-        </shape>
-     |]
-   
-{-
-
-instance ToXMLChild Color where
-   toXMLChild name = \case
-      CS x -> toXMLChild name x
-      CT x -> toXMLChild name x
-
 data Diffuse = Diffuse 
    { diffuseReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -512,7 +598,7 @@ data RoughDiffuse = RoughDiffuse
    , roughDiffuseUseFastApprox :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-instance ToElement Diffuse
+instance ToElement RoughDiffuse
    
 data KnownMaterial 
    = Vacuum
@@ -565,20 +651,18 @@ instance ToAttributeValue KnownMaterial where
       Amber               -> "amber"
       Pet                 -> "pet"
       Diamond             -> "diamond"
-      
-instance ToXMLChild KnownMaterial where
-   toXMLChild = asPrimitive "string"
+
+instance ToElement KnownMaterial where
+   toElement = toElement . toAttributeValue
 
 data Refraction 
    = RKM KnownMaterial 
    | IOR Double 
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-instance ToXMLChild Refraction where
-   toXMLChild name = \case 
-      RKM x -> toXMLChild name x
-      IOR x -> toXMLChild name x
-   
+instance ToElement Refraction where
+   toElement = forwardToElement
+
 data Dielectric = Dielectric 
    { dielectricIntIOR                :: Refraction
    , dielectricExtIOR                :: Refraction
@@ -609,24 +693,32 @@ instance ToAttributeValue Distribution where
       GGX      -> "ggx"
       Phong    -> "phong"
       
-instance ToXMLChild Distribution where
-   toXMLChild = asPrimitive "string"       
+instance ToElement Distribution where
+   toElement = toElement . toAttributeValue
+
+data Luminance 
+   = UniformLuminance Double
+   | TextureLuminance Texture
+   deriving (Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance ToElement Luminance where
+   toElement = forwardToElement
 
 data RoughDielectricRegular = RoughDielectricRegular
    { roughDielectricRegularDistribution          :: Distribution
-   , roughDielectricRegularAlpha                 :: Either Double Texture
+   , roughDielectricRegularAlpha                 :: Luminance
    , roughDielectricRegularIntIOR                :: Refraction
    , roughDielectricRegularExtIOR                :: Refraction
    , roughDielectricRegularSpecularReflectance   :: Color
    , roughDielectricRegularSpecularTransmittance :: Color
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Enum, Bounded)
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance ToElement RoughDielectricRegular
    
 data RoughDielectricAnistrophic = RoughDielectricAnistrophic
    { roughDielectricAnistrophicDistribution          :: Distribution
-   , roughDielectricAnistrophicAlphaU                :: Either Double Texture
-   , roughDielectricAnistrophicAlphaV                :: Either Double Texture
+   , roughDielectricAnistrophicAlphaU                :: Luminance
+   , roughDielectricAnistrophicAlphaV                :: Luminance
    , roughDielectricAnistrophicIntIOR                :: Refraction
    , roughDielectricAnistrophicExtIOR                :: Refraction
    , roughDielectricAnistrophicSpecularReflectance   :: Color
@@ -640,7 +732,8 @@ data RoughDielectric
    | RDRoughDielectricAnisotrophic RoughDielectricAnistrophic
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-deriveForwardInstance ''ToXMLElements ''RoughDielectric 
+instance ToElement RoughDielectric where
+   toElement = forwardToElement
 
 data ConductorType
    = AmorphousCarbon
@@ -670,6 +763,7 @@ data ConductorType
    | Selenium
    | HexagonalSiliconCarbide
    | TinTelluride
+   | Tantalum
    | PolycrystThoriumFluoride
    | PolycrystallineTitaniumCarbide
    | TitaniumNitride
@@ -677,6 +771,7 @@ data ConductorType
    | Vanadium
    | VanadiumNitride
    | Tungsten
+   | None
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Enum, Bounded)
    
 instance ToAttributeValue ConductorType where
@@ -716,10 +811,10 @@ instance ToAttributeValue ConductorType where
       Vanadium                       -> "V_palik"
       VanadiumNitride                -> "VN"
       Tungsten                       -> "W"
-      Mirror                         -> "none"
+      None                           -> "none"
    
-instance ToXMLChild ConductorType where
-   toXMLChild = asPrimitive "string"
+instance ToElement ConductorType where
+   toElement = toElement . toAttributeValue
    
 data SmoothConductor = SmoothConductor 
    { smoothConductorMaterial            :: ConductorType
@@ -731,25 +826,37 @@ data SmoothConductor = SmoothConductor
    
 instance ToElement SmoothConductor
 
+--TODO make luminance
+-- Luminance
+-- and a instance that forwards
+
+data IndexOfRefraction 
+   = IORNumeric       Double
+   | IORKnownMaterial KnownMaterial
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic) 
+
+instance ToElement IndexOfRefraction where
+   toElement = forwardToElement
+
 data RoughConductorRegular = RoughConductorRegular 
    { roughConductorRegularDistribution :: Distribution
-   , roughConductorRegularAlpha        :: Either Double Texture
+   , roughConductorRegularAlpha        :: Luminance
    , roughConductorRegularMaterial     :: ConductorType
    , roughConductorRegularEta          :: Spectrum
    , roughConductorRegularK            :: Spectrum
-   , roughConductorRegularExtEta       :: Either Double KnownMaterial
+   , roughConductorRegularExtEta       :: IndexOfRefraction
    , roughConductorSpecularReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance ToElement RoughConductorRegular
    
 data RoughConductorAnisotropic = RoughConductorAnisotropic
-   { roughConductorAnisotropicAlphaU              :: Either Double Texture
-   , roughConductorAnisotropicAlphaV              :: Either Double Texture
+   { roughConductorAnisotropicAlphaU              :: Luminance
+   , roughConductorAnisotropicAlphaV              :: Luminance
    , roughConductorAnisotropicMaterial            :: ConductorType
    , roughConductorAnisotropicEta                 :: Spectrum
    , roughConductorAnisotropicRegularK            :: Spectrum
-   , roughConductorAnisotropicRegularExtEta       :: Either Double KnownMaterial
+   , roughConductorAnisotropicRegularExtEta       :: IndexOfRefraction
    , roughConductorAnisotropicSpecularReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
@@ -760,7 +867,8 @@ data RoughConductor
    | RCAnisotropic RoughConductorAnisotropic
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-deriveForwardInstance ''ToXMLElements ''RoughConductor
+instance ToElement RoughConductor where
+   toElement = forwardToElement
 
 data Plastic = Plastic
    { plasticIntIOR              :: Refraction
@@ -774,7 +882,7 @@ instance ToElement Plastic
 
 data RoughPlastic = RoughPlastic
    { roughPlasticDistribution        :: Distribution
-   , roughPlasticAlpha               :: Either Double Texture
+   , roughPlasticAlpha               :: Luminance
    , roughPlasticIntIOR              :: Refraction
    , roughPlasticExtIOR              :: Refraction
    , roughPlasticSpecularReflectance :: Color
@@ -793,14 +901,14 @@ data SmoothDielectricCoating = SmoothDielectricCoating
    , smoothDielectricCoatingChild              :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-instance ToElement RoughDielectricCoating   
+instance ToElement SmoothDielectricCoating   
    
 -- TODO make a Coating a = Coating { coatingData :: a, child :: BSDF }   
 data RoughDielectricCoating = RoughDielectricCoating
    { roughDielectricCoatingDistribution        :: Distribution
-   , roughDielectricCoatingAlpha               :: Either Double Texture
-   , roughDielectricCoatingIntIOR              :: Either Double String
-   , roughDielectricCoatingExtIOR              :: Either Double String
+   , roughDielectricCoatingAlpha               :: Luminance
+   , roughDielectricCoatingIntIOR              :: IndexOfRefraction
+   , roughDielectricCoatingExtIOR              :: IndexOfRefraction
    , roughDielectricCoatingThickness           :: Double
    , roughDielectricCoatingSigmaA              :: Color
    , roughDielectricCoatingSpecularReflectance :: Color
@@ -817,7 +925,7 @@ data Bump = Bump
 instance ToElement Bump
 
 data ModifiedPhong = ModifiedPhong
-   { modifiedPhongExponent            :: Either Float Texture
+   { modifiedPhongExponent            :: Luminance
    , modifiedPhongSpecularReflectance :: Color
    , modifiedPhongDiffuseReflectance  :: Color 
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -836,13 +944,13 @@ instance ToAttributeValue WardType where
       WTWardDuer -> "ward-duer"
       WTBalanced -> "balanced"
 
-instance ToXMLChild WardType where
-   toXMLChild = asPrimitive "string"
+instance ToElement WardType where
+   toElement = toElement . toAttributeValue
    
 data Ward = Ward 
    { wardVariant             :: WardType
-   , wardAlphaU              :: Either Double Texture
-   , wardAlphaV              :: Either Double Texture
+   , wardAlphaU              :: Luminance
+   , wardAlphaV              :: Luminance
    , wardSpecularReflectance :: Color
    , wardDiffuseReflectance  :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -852,11 +960,17 @@ instance ToElement Ward
 data MixtureBSDF = MixtureBSDF 
    { mixtureBSDFChildren :: [(Double, BSDF)]
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
--- TODO make this instance
+
+instance ToElement MixtureBSDF where
+   toElement MixtureBSDF {..} 
+      = let (weights, children) = unzip mixtureBSDFChildren
+      in addChildList (tag "mixturebsdf")
+         $ (primitive "string" (intercalate ", " $ map show weights) # 
+            ("name", "weights" :: Text)) :
+           map toElement children
 
 data BlendBSDF = BlendBSDF
-   { blendBSDFWeight :: Either Double Texture
+   { blendBSDFWeight :: Luminance
    , blendBSDFChild  :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
@@ -900,7 +1014,13 @@ data Irawan = Irawan
    , irawanAdditionalParameters :: [(String, Either Spectrum Double)]
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-instance ToElement Irawan
+instance ToElement Irawan where
+   toElement Irawan {..} 
+      = foldl' (.>) (tag "irawan") 
+      $ [ ("filename", toElement irawanFilename)
+        , ("repeatU" , toElement irawanRepeatU)
+        , ("repeatV" , toElement irawanRepeatV)
+        ] ++ map (T.pack *** forwardToElement) irawanAdditionalParameters
 
 data BSDF 
    = BSDFDiffuse                 Diffuse 
@@ -926,20 +1046,61 @@ data BSDF
    | BSDFIrawan                  Irawan
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-instance ToTypeName BSDF where
-   toTypeName = forwardLowerTypeName
+instance ToElement BSDF
+
+data ShapeType 
+   = STCube       Cube
+   | STSphere     Sphere
+   | STRectangle  Rectangle
+   | STDisk       Disk
+   | STOBJ        OBJ
+   | STPLY        PLY
+   | STSerialized Serialized
+   | STGroup      [ShapeType]
+   | STInstance   String
+   | STHair       Hair
+    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance ToElement a => ToElement [a] where
+   toElement = addChildList (tag "list") 
+    
+instance ToElement ShapeType where
    
-instance ToXMLElements BSDF where
-   toXMLElements = forwardToXMLElements
-
-instance ToXML BSDF where
-   toXML = defaultToXML
-
-
+    
+toShapeType :: ShapeType -> Text
+toShapeType = \case
+   STCube       {} -> "cube"
+   STSphere     {} -> "sphere"
+   STRectangle  {} -> "rectangle"
+   STDisk       {} -> "disk"
+   STOBJ        {} -> "obj"
+   STPLY        {} -> "ply"
+   STSerialized {} -> "serialized"
+   STGroup      {} -> "group"
+   STInstance   {} -> "instance"
+   STHair       {} -> "hair"
    
 
-   
-  
+data MicroFlake = MicroFlake
+   { microFlakeStddev :: Double
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement MicroFlake
+
+-- Combine with other mixture phases
+data MixturePhase = MixturePhase
+   { mixturePhaseChildren :: [(Double, Child PhaseFunction)]
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement MixturePhase where
+   toElement MixturePhase {..} = 
+      let (weights, phaseFunctions) = unzip mixturePhaseChildren
+      in addChildList (tag "mixturephase") $
+            ( primitive "weights" 
+                $ T.intercalate ", " 
+                $ map (T.pack . show) weights
+            ) : map toElement phaseFunctions
+         
 data SSSMaterial 
    = Apple
    | Cream
@@ -988,90 +1149,123 @@ data SSSMaterial
    | SuisseMocha
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
    
+instance ToElement SSSMaterial where
+   toElement x = toElement $ case x of
+      Apple                -> "Apple" :: Text
+      Cream                -> "Cream"
+      Skimmilk             -> "Skimmilk"
+      Spectralon           -> "Spectralon"
+      LowfatMilk           -> "Lowfat Milk"
+      ReducedMilk          -> "Reduced Milk"
+      RegularMilk          -> "Regular Milk"
+      Espresso             -> "Expresso"
+      MintMochaCoffee      -> "Mint Mocha Coffee"
+      LowfatSoyMilk        -> "Lowfat Soy Milk"
+      RegularSoyMilk       -> "Regular Soy Milk"
+      LowfatChocolateMilk  -> "Lowfat Chocolate Milk"
+      RegularChocolateMilk -> "Regular Chocolate Milk"
+      Coke                 -> "Coke"
+      Pepsi                -> "Pepsi"
+      Sprite               -> "Sprite"
+      Chicken1             -> "Chicken1"
+      Ketchup              -> "Ketchup"
+      Skin1                -> "Skin1"
+      Wholemilk            -> "Wholemilk"
+      Gatorade             -> "Gatorade"
+      Chardonnay           -> "Chardonnay"
+      WhiteZinfandel       -> "White Zinfandel"
+      Merlot               -> "Merlot"
+      BudwieserBeer        -> "Budweiser Beer"
+      CoorsLightBeer       -> "Coors Light Beer"
+      Clorox               -> "Clorox"
+      AppleJuice           -> "Apple Juice"
+      CranberryJuice       -> "Cranberry Juice"
+      GrapeJuice           -> "Grape Juice"
+      RubyGrapefruitJuice  -> "Ruby Grapefruit Juice"
+      Chicken2             -> "Chicken2"
+      Potato               -> "Potato"
+      Skin2                -> "Skin2"
+      WhiteGrapefruitJuice -> "White Grapefruit Juice"
+      Shampoo              -> "Shampoo"
+      StrawberryShampoo    -> "Strawberry Shampoo"
+      HeadShouldersShampoo -> "Head & Shoulders Shampoo"
+      LemonTeaPowder       -> "Lemon Tea Powder"
+      OrangeJuicePowder    -> "Orange Juice Powder"
+      PinkLemonadPowder    -> "Pink Lemonade Powder"
+      CappuccinoPowder     -> "Cappuccino Powder"
+      SaltPowder           -> "Salt Powder"
+      SugarPowder          -> "Sugar Powder"
+      SuisseMocha          -> "Suisse Mocha"
+
 data SigmaAS = SigmaAS 
    { sigmaASA :: Spectrum
    , sigmaASS :: Spectrum
    }
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement SigmaAS
+
 data SigmaTAlbedo = SigmaTAlbedo 
    { sigmaTAlbedoT      :: Spectrum
    , sigmaTAlbedoAlbedo :: Spectrum
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement SigmaTAlbedo
+
 data MaterialStyle 
    = MSMaterial      SSSMaterial
    | MSSigmaAS       SigmaAS
    | MSSigmaTAlbedo  SigmaTAlbedo
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data Dipole = Dipole 
-   { dipoleMaterialStyle :: MaterialStyle
-   , dipoleScale         :: Double
-   , dipoleIntIOR        :: Refraction
-   , dipoleExtIOR        :: Refraction
-   , dipoleIRRSamples    :: Integer
-   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data SSS 
-   = SSSDipole Dipole
+
+instance ToElement MaterialStyle where
+   toElement = forwardToElement
+
+data PhaseFunction 
+   = PFIsotropic 
+   | PFHG        Double
+   | PFRayleigh  
+   | PFKKay
+   | PFMicroflake   MicroFlake
+   | PFMixturePhase MixturePhase
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement PhaseFunction
+
 data Homogeneous = Homogeneous 
    { homogeneousMaterialStyle :: MaterialStyle
    , homogeneousScale         :: Double
    , homogeneousPhase         :: PhaseFunction
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Homogeneous
    
 data HeterogeneousSampling 
    = Simpson
    | Woodcock
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
    
-data Heterogeneous = Heterogeneous
-   { heterogeneousMethod      :: HeterogeneousSampling
-   , heterogeneousDensity     :: VolumeDataSource
-   , heterogeneousAlbedo      :: VolumeDataSource 
-   , heterogeneousOrientation :: VolumeDataSource
-   , heterogeneousScale       :: Double
-   , heterogenousPhase        :: Child PhaseFunction
-   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data PartcipatingMedia 
-   = PMHomogeneous   Homogeneous 
-   | PMHeterogeneous Heterogeneous
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+instance ToElement HeterogeneousSampling where
+   toElement x = toElement $ case x of
+      Simpson  -> "simpson" :: Text
+      Woodcock -> "woodcock"
 
-data HG = HG 
-   { hgG :: Double
-   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data MicroFlake = MicroFlake
-   { microFlakeStddev :: Double
-   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-
--- Combine with other mixture phases
-data MixturePhase = MixturePhase
-   { mixturePhaseChildren :: [(Double, Child PhaseFunction)]
-   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-
-data PhaseFunction 
-   = PFIsotropic 
-   | PFHG        HG
-   | PFRayleigh  
-   | PFKKay
-   | PFMicroflake   MicroFlake
-   | PFMixturePhase MixturePhase
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
 data ConstVolume 
    = CVDouble   Double
    | CVSpectrum Spectrum
    | CVVector   Vector
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-
+   
+instance ToElement ConstVolume where
+   toElement = forwardToElement
+   
 data SendDataType = SendAcrossNetwork | AssumeAvailable
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+
+instance ToElement SendDataType where
+   toElement x = toElement $ case x of
+      SendAcrossNetwork -> True
+      AssumeAvailable   -> False
 
 data GridVolume = GridVolume 
    { gridVolumeFilename :: FilePath
@@ -1080,6 +1274,8 @@ data GridVolume = GridVolume
    , gridVolumeMin      :: Point
    , gridVolumeMax      :: Point
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement GridVolume
 
 data VolCache = VolCache
    { volCacheBlockSize   :: Integer
@@ -1089,11 +1285,86 @@ data VolCache = VolCache
    , volCacheChild       :: Child VolumeDataSource
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement VolCache
+
 data VolumeDataSource
    = VDSConstVolume ConstVolume
    | VDSGridVolume  GridVolume
    | VDSVolCache    VolCache
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement VolumeDataSource where
+   toElement = forwardToElement
+   
+data Heterogeneous = Heterogeneous
+   { heterogeneousMethod      :: HeterogeneousSampling
+   , heterogeneousDensity     :: VolumeDataSource
+   , heterogeneousAlbedo      :: VolumeDataSource 
+   , heterogeneousOrientation :: VolumeDataSource
+   , heterogeneousScale       :: Double
+   , heterogenousPhase        :: Child PhaseFunction
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Heterogeneous
+   
+data PartcipatingMedia 
+   = PMHomogeneous   Homogeneous 
+   | PMHeterogeneous Heterogeneous
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement PartcipatingMedia where
+   toElement = forwardToElement
+
+data MediumPair = MediumPair 
+   { mediumPairInterior :: PartcipatingMedia
+   , mediumPairExterior :: PartcipatingMedia
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance Each MediumPair MediumPair PartcipatingMedia PartcipatingMedia where
+   each f MediumPair {..}
+       =  MediumPair 
+      <$> f mediumPairInterior
+      <*> f mediumPairExterior
+   
+data Shape = Shape 
+   { shapeType       :: ShapeType
+   , shapeMaterial   :: Maybe BSDF 
+   , shapeMediumPair :: Maybe MediumPair
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance ToElement Shape where
+   toElement Shape {..} = 
+     addChildList (tag "shape" # ("type", toShapeType shapeType))
+          $ ( map childItemElement
+            . filter (has (childItemTypeL . _Nested)) 
+            . F.toList 
+            . elementChildren 
+            . toElement
+            ) shapeType
+         <> (maybeToList . fmap toElement) shapeMaterial
+         <> (fromMaybe [] $ do
+               MediumPair x y <- shapeMediumPair
+               return $ 
+                  [ toElement x
+                  , toElement y
+                  ]
+            )
+
+data Dipole = Dipole 
+   { dipoleMaterialStyle :: MaterialStyle
+   , dipoleScale         :: Double
+   , dipoleIntIOR        :: Refraction
+   , dipoleExtIOR        :: Refraction
+   , dipoleIRRSamples    :: Integer
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement Dipole   
+   
+data SSS 
+   = SSSDipole Dipole
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement SSS
 
 data PointLight = PointLight
    { pointLightToWorld        :: Transform
@@ -1102,10 +1373,14 @@ data PointLight = PointLight
    , pointLightSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement PointLight     
+   
 data AreaLight = AreaLight 
    { areaLightRadiance       :: Spectrum
    , areaLightSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement AreaLight
 
 data SpotLight = SpotLight
    { spotLightToWorld        :: Transform
@@ -1116,18 +1391,24 @@ data SpotLight = SpotLight
    , spotLightSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement SpotLight
+
 data DirectionalLight = DirectionalLight
    { directionalLightToWorld        :: Transform
    , directionalLightVector         :: Vector
    , directionalLightIrradiance     :: Spectrum
    , directionalLightSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement DirectionalLight
+
 data Collimated = Collimated 
    { collimatedToWorld        :: Transform
    , collimatedPower          :: Spectrum
    , collimatedSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Collimated
 
 data Sky = Sky
    { skyTurbidity      :: Double
@@ -1145,6 +1426,8 @@ data Sky = Sky
    , skyToWorld        :: Transform
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement Sky
+
 data Sun = Sun 
    { sunTurbidity    :: Double
    , sunYear         :: Integer
@@ -1161,6 +1444,8 @@ data Sun = Sun
    , sunRadiusScale  :: Double
    , sunSampleWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement Sun   
    
 data Sunsky = Sunsky
    { sunskyTurbidity      :: Double
@@ -1182,6 +1467,8 @@ data Sunsky = Sunsky
    , sunskySunRadiusScale :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement Sunsky   
+   
 data Envmap = Envmap
    { envmapFilename       :: FilePath
    , envmapScale          :: Double
@@ -1191,10 +1478,14 @@ data Envmap = Envmap
    , envmapSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement Envmap  
+   
 data Constant = Constant
    { constantRadiance       :: Spectrum
    , constantSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Constant
 
 data Emitter
    = EPointLight       PointLight
@@ -1208,17 +1499,8 @@ data Emitter
    | EConstant         Constant
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance ToTypeName Emitter where
-   toTypeName = forwardLowerTypeName
+instance ToElement Emitter
 
-instance ToXMLElements Emitter where
-   toXMLElements = forwardToXMLElements
-   
-instance ToXMLChild Emitter where
-   toXMLChild = toXMLChildDefault
-   
-instance ToXML Emitter where
-   toXML = toXMLDefault
 
 data FOVType
    = FOVTX
@@ -1227,6 +1509,14 @@ data FOVType
    | FOVTSmaller
    | FOVTLarger
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement FOVType where
+   toElement x = primitive "string" $ case x of
+      FOVTX        -> "tx" :: Text
+      FOVTY        -> "ty"
+      FOVTDiagonal -> "diagonal"
+      FOVTSmaller  -> "smaller"
+      FOVTLarger   -> "larger"
 
 data Perspective = Perspective
    { perspectiveToWorld      :: Transform
@@ -1238,6 +1528,8 @@ data Perspective = Perspective
    , perspectiveNearClip     :: Double
    , perspectiveFarClip      :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Perspective
 
 data Thinlens = Thinlens
    { thinlensToWorld         :: Transform
@@ -1252,6 +1544,8 @@ data Thinlens = Thinlens
    , thinlensFarClip         :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement Thinlens
+
 data Orthographic = Orthographic
    { orthographicToWorld      :: Transform
    , orthographicShutterOpen  :: Double
@@ -1259,6 +1553,8 @@ data Orthographic = Orthographic
    , orthographicNearClip     :: Double
    , orthographicFarClip      :: Double   
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Orthographic
 
 data Telecentric = Telecentric
    { telecentricToWorld         :: Transform
@@ -1270,16 +1566,22 @@ data Telecentric = Telecentric
    , telecentricFarClip         :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement Telecentric
+
 data Spherical = Spherical 
    { sphericalToWorld      :: Transform
    , sphericalShutterOpen  :: Double
    , sphericalShutterClose :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement Spherical   
+   
 data IrradianceMeter = IrradianceMeter
    { irradianceMeterShutterOpen  :: Double
    , irradianceMeterShutterClose :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement IrradianceMeter   
    
 data RadianceMeter = RadianceMeter
    { radianceToWorld      :: Transform
@@ -1287,15 +1589,38 @@ data RadianceMeter = RadianceMeter
    , radianceShutterClose :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement RadianceMeter
+
 data FluenceMeter = FluenceMeter
    { fluenceMeterToWorld      :: Transform
    , fluenceMeterShutterOpen  :: Double
    , fluenceMeterShutterClose :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement FluenceMeter
+
+data PolyTwoAndFour = PolyTwoAndFour
+   { polyTwoAndFourTwo  :: Double
+   , polyTwoAndFourFour :: Double
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance Each PolyTwoAndFour PolyTwoAndFour Double Double where
+   each f PolyTwoAndFour {..} 
+       =  PolyTwoAndFour 
+      <$> f polyTwoAndFourTwo
+      <*> f polyTwoAndFourFour
+   
+instance ToElement PolyTwoAndFour where
+   toElement 
+      = primitive "string" 
+      . T.pack 
+      . intercalate "," 
+      . map show 
+      . toListOf each  
+
 data PerspectiveRDist = PerspectiveRDist
    { perspectiveRDistToWorld      :: Transform
-   , perspectiveRDistKC           :: (Double, Double)
+   , perspectiveRDistKC           :: PolyTwoAndFour
    , perspectiveRDistFocalLength  :: Double
    , perspectiveRDistFOV          :: Double
    , perspectiveRDistFOVAxis      :: FOVType
@@ -1304,6 +1629,8 @@ data PerspectiveRDist = PerspectiveRDist
    , perspectiveRDistNearClip     :: Double
    , perspectiveRDistFarClip      :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement PerspectiveRDist
 
 data Sensor
    = SPerspective      Perspective
@@ -1317,16 +1644,31 @@ data Sensor
    | SPerspectiveRDist PerspectiveRDist
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement Sensor
+   
 data AmbientOcclusion = AmbientOcclusion 
    { ambientOcclusionShdingSamples :: Integer
    , ambientOcclusionRayLength     :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data Visibility = Hide | Show
+
+instance ToElement AmbientOcclusion
+
+data Visibility = Hidden | Visible
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+
+instance ToElement Visibility where
+   toElement x = toElement $ case x of
+      Hidden  -> False
+      Visible -> True
+
 data NormalStrictness = Strict | Loose
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
-   
+
+instance ToElement NormalStrictness where
+   toElement x = toElement $ case x of
+         Strict -> True
+         Loose  -> False
+
 data Direct = Direct
    { directShadingSamples :: Integer
    , directEmitterSamples :: Integer
@@ -1335,32 +1677,50 @@ data Direct = Direct
    , directHideEmitters   :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement Direct
+   
 data Path = Path
    { pathMaxDepth      :: Integer
    , pathRRDepth       :: Integer
    , pathStrictNormals :: NormalStrictness
    , pathHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Path
+
 data VolPathSimple = VolPathSimple
    { volPathSimpleMaxDepth      :: Integer
    , volPathSimpleRRDepth       :: Integer
    , volPathSimpleStrictNormals :: NormalStrictness
    , volPathSimpleHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement VolPathSimple
+
 data VolPath = VolPath
    { volPathMaxDepth      :: Integer
    , volPathRRDepth       :: Integer
    , volPathStrictNormals :: NormalStrictness
    , volPathHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement VolPath
+
 data PathConnectedness = ConnectToCamera | DontConnect
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
-   
+
+instance ToElement PathConnectedness where
+   toElement x = toElement $ case x of
+         ConnectToCamera -> True
+         DontConnect     -> False
+
 data DirectSampling = DirectSampling | NoDirectSampling   
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+   
+instance ToElement DirectSampling where
+   toElement x = toElement $ case x of
+         DirectSampling   -> True
+         NoDirectSampling -> False
    
 data BDPT = BDPT
    { bdptMaxDepth     :: Integer
@@ -1368,22 +1728,26 @@ data BDPT = BDPT
    , bdptSampleDirect :: DirectSampling
    , bdptRRDepth      :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-data Photonmapper = Photonmapper
-   { photonmapperDirectSamples       :: Integer
-   , photonmapperGlossySamples       :: Integer
-   , photonmapperMaxDepth            :: Integer
-   , photonmapperGlobalPhotons       :: Integer
-   , photonmapperCausticPhotons      :: Integer
-   , photonmapperVolumenPhotons      :: Integer
-   , photonmapperGlobalLookupRadius  :: Double
-   , photonmapperCausticLookupRadius :: Double
-   , photonmapperLookupSize          :: Integer
-   , photonmapperGranularity         :: Integer
-   , photonmapperHideEmitters        :: Bool
-   , photonmapperRRDepth             :: Integer
+
+instance ToElement BDPT
+
+data PhotonMapper = PhotonMapper
+   { photonMapperDirectSamples       :: Integer
+   , photonMapperGlossySamples       :: Integer
+   , photonMapperMaxDepth            :: Integer
+   , photonMapperGlobalPhotons       :: Integer
+   , photonMapperCausticPhotons      :: Integer
+   , photonMapperVolumenPhotons      :: Integer
+   , photonMapperGlobalLookupRadius  :: Double
+   , photonMapperCausticLookupRadius :: Double
+   , photonMapperLookupSize          :: Integer
+   , photonMapperGranularity         :: Integer
+   , photonMapperHideEmitters        :: Bool
+   , photonMapperRRDepth             :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement PhotonMapper
+
 data PPM = PPM 
    { ppmMaxDepth      :: Integer
    , ppmPhotonCount   :: Integer
@@ -1393,7 +1757,9 @@ data PPM = PPM
    , ppmRRDepth       :: Integer
    , ppmMaxPasses     :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement PPM
+
 data SPPM = SPPM
    { sppmMaxDepth      :: Integer
    , sppmphotonCount   :: Integer
@@ -1403,7 +1769,9 @@ data SPPM = SPPM
    , sppmRRDepth       :: Integer
    , sppmMaxPasses     :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement SPPM
+
 data PSSMLT = PSSMLT
    { pssmltBidirectional    :: Bool
    , pssmltMaxDepth         :: Integer
@@ -1413,7 +1781,9 @@ data PSSMLT = PSSMLT
    , pssmltTwoStage         :: Bool
    , pssmltPLarge           :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement PSSMLT
+
 data MLT = MLT
    { mltMaxDepth               :: Integer
    , mltDirectSamples          :: Integer
@@ -1427,7 +1797,9 @@ data MLT = MLT
    , mltMultiChainManifold     :: Bool
    , mltMultiChainPerturbation :: Bool
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement MLT
+
 data ERPT = ERPT
    { erptMaxDepth               :: Integer
    , erptNumChains              :: Double
@@ -1440,26 +1812,34 @@ data ERPT = ERPT
    , erptManifoldPerturbation   :: Bool
    , erptLambda                 :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement ERPT
+
 data PTracer = PTracer
    { ptracerMaxDepth    :: Integer
    , ptracerRRDepth     :: Integer
    , ptracerGranularity :: Integer
    , ptracerBruteForce  :: Bool
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement PTracer
+
 data Adaptive = Adaptive
    { adaptiveMaxError        :: Double
    , adaptivePValue          :: Double
    , adaptiveMaxSampleFactor :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Adaptive
+
 data VP1 = VP1 
    { vp1MaxDepth            :: Integer
    , vp1ShadowMapResolution :: Integer
    , vp1Clamping            :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement VP1
+
 data IRRCache = IRRCache 
    { irrCacheResolution        :: Integer
    , irrCacheQuality           :: Double
@@ -1471,7 +1851,9 @@ data IRRCache = IRRCache
    , irrCacheIndirectOnly      :: Bool
    , irrCacheDebug             :: Bool
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement IRRCache
+
 data Integrator 
    = IAmbientOcclusion AmbientOcclusion 
    | IDirect           Direct
@@ -1479,7 +1861,7 @@ data Integrator
    | IVolPathSimple    VolPathSimple
    | IVolPath          VolPath
    | IBDPT             BDPT
-   | IPhotonmapper     Photonmapper
+   | IPhotonMapper     PhotonMapper
    | IPPM              PPM
    | ISPPM             SPPM
    | IPSSMLT           PSSMLT
@@ -1490,35 +1872,49 @@ data Integrator
    | IVP1              VP1
    | IIRRCache         IRRCache
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Integrator
+
 data Independent = Independent
    { independentSampleCount :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Independent
+
 data Stratified = Stratified
    { stratifiedSampleCount :: Integer
    , stratifiedDimension   :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Stratified
+
 data LDSampler = LDSampler
    { ldSamplerSampleCount :: Integer
    , ldSamplerDimension   :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement LDSampler
+
 data Halton = Halton
    { haltonSampleCount :: Integer
    , haltonScramble    :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Halton
+
 data Hammersley = Hammersley
    { hammersleySampleCount :: Integer
    , hammersleyScramble    :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Hammersley
+
 data Sobol = Sobol 
    { sobolSampleCount :: Integer
    , sobolScramble    :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Sobol
 
 data SampleGenerator
    = SIndependent Independent
@@ -1529,12 +1925,20 @@ data SampleGenerator
    | SSobol       Sobol
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement SampleGenerator
+
 data FileFormatType
    = Openexr
    | RGBE
    | PFM
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
-   
+
+instance ToElement FileFormatType where
+   toElement x = primitive "string" $ case x of
+      Openexr -> "openexr" :: Text
+      RGBE    -> "rgbe"
+      PFM     -> "pfm"
+
 data PixelFormat
    = PFLuminance
    | PFLuminanceAlpha
@@ -1545,12 +1949,29 @@ data PixelFormat
    | PFSpectrum
    | PFSpectrumAlpha
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Bounded, Enum)
-   
+
+instance ToElement PixelFormat where
+   toElement x = primitive "string" $ case x of
+      PFLuminance      -> "luminance" :: Text
+      PFLuminanceAlpha -> "luminancealpha"
+      PFRGB            -> "rgb"
+      PFRGBA           -> "rgba"
+      PFXYZ            -> "xyz"
+      PFXYZA           -> "xyza"
+      PFSpectrum       -> "spectrum"
+      PFSpectrumAlpha  -> "spectrumalpha"
+
 data ComponentFormat 
    = Float16
    | Float32
    | UInt32
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Bounded, Enum)
+   
+instance ToElement ComponentFormat where
+   toElement x = primitive "string" $ case x of
+      Float16 -> "float16" :: Text
+      Float32 -> "float32"
+      UInt32  -> "uint32"
 
 data HDRfilm = HDRfilm
    { hdrfilmWidth            :: Integer
@@ -1568,13 +1989,17 @@ data HDRfilm = HDRfilm
    , hdrfilmRFilter          :: ReconstructionFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement HDRfilm
+   
 data Crop = Crop
    { cropCropOffsetX :: Integer
    , cropCropOffsetY :: Integer
    , cropCropWidth   :: Integer
    , cropCropHeight  :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement Crop
+
 data TiledHDRFilm = TiledHDRFilm
    { tiledHDRFilmWidth           :: Integer
    , tiledHDRFilmHeight          :: Integer
@@ -1583,16 +2008,35 @@ data TiledHDRFilm = TiledHDRFilm
    , tiledHDRFilmComponentFormat :: ComponentFormat
    , tiledHDRFilmRFilter         :: ReconstructionFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
+
+instance ToElement TiledHDRFilm where
+   toElement TiledHDRFilm {..}
+      = maybe (tag "tiledhdrfilm") 
+          (\x -> tag "tiledhdrfilm" .> ("crop", x)) tiledHDRFilmCrop
+      .> ("width"          , tiledHDRFilmWidth          )
+      .> ("height"         , tiledHDRFilmHeight         )
+      .> ("pixelFormat"    , tiledHDRFilmPixelFormat    )
+      .> ("componentFormat", tiledHDRFilmComponentFormat)
+      .> ("rFilter"        , tiledHDRFilmRFilter        )
+          
+
 data GammaType
    = GTGammaCurve Double
    | GTSRGB
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement GammaType where
+   toElement x = toElement $ case x of
+      GTGammaCurve y -> y
+      GTSRGB         -> -1
 
 data LDRfilm
    = LDRFGammaFilm GammaFilm 
    | LDRFReinhard  ReinhardFilm
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement LDRfilm where
+   toElement = forwardToElement
    
 data GammaFilm = GammaFilm
    { ldrfilmWidth            :: Integer
@@ -1607,6 +2051,20 @@ data GammaFilm = GammaFilm
    , ldffilmRFilter          :: ReconstructionFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
+instance ToElement GammaFilm where
+   toElement GammaFilm {..} 
+      = maybe (tag "gammafilm") 
+          (\x -> tag "gammafilm" .> ("crop", x)) ldffilmCrop
+     .> ("width"                       , ldrfilmWidth            )
+     .> ("height"                      , ldrfilmHeight           )   
+     .> ("fileFormat"                  , ldrfilmFileFormat       )
+     .> ("pixelFormat"                 , ldrfilmPixelFormat      )
+     .> ("gamma"                       , ldrfilmGamma            )
+     .> ("exposure"                    , ldffilmExposure         )   
+     .> ("banner"                      , ldffilmBanner           )
+     .> ("highQualityEdges"            , ldffilmHighQualityEdges )
+     .> ("rFilter"                     , ldffilmRFilter          )
+                                       
 data ReinhardFilm = ReinhardFilm
    { reinhardFilmWidth            :: Integer
    , reinhardFilmHeight           :: Integer
@@ -1621,9 +2079,24 @@ data ReinhardFilm = ReinhardFilm
    , reinhardFilmRFilter          :: ReconstructionFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement ReinhardFilm where
+   toElement ReinhardFilm {..} 
+     = maybe (tag "reinhardfilm") 
+               (\x -> tag "reinhardfilm" .> ("crop", x)) reinhardFilmCrop
+     .> ("width"            , reinhardFilmWidth           )
+     .> ("height"           , reinhardFilmHeight          )
+     .> ("pixelFormat"      , reinhardFilmPixelFormat     )
+     .> ("gamma"            , reinhardFilmGamma           )
+     .> ("exposure"         , reinhardFilmExposure        )
+     .> ("key"              , reinhardFilmKey             )
+     .> ("burn"             , reinhardFilmBurn            )
+     .> ("banner"           , reinhardFilmBanner          )
+     .> ("highQualityEdges" , reinhardFilmHighQualityEdges)
+     .> ("rfilter"          , reinhardFilmRFilter         )
+
 data MFilm = MFilm 
    { mfilmWidth            :: Integer
-   , mfilmhHeight          :: Integer
+   , mfilmHeight           :: Integer
    , mfilmCrop             :: Maybe Crop
    , mfilmFileFormat       :: FileFormatType
    , mfilmDigits           :: Integer
@@ -1633,12 +2106,27 @@ data MFilm = MFilm
    , mfilmRFilter          :: ReconstructionFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance ToElement MFilm where
+   toElement MFilm {..} 
+       = maybe (tag "mfilm") (\x -> tag "mfilm" .> ("crop", x)) mfilmCrop
+      .> ("width"           , mfilmWidth )
+      .> ("height"          , mfilmHeight)
+      .> ("digits"          , mfilmDigits)
+      .> ("variable"        , mfilmVariable)
+      .> ("pixelFormat"     , mfilmPixelFormat)
+      .> ("highQualityEdges", mfilmHighQualityEdges)
+      .> ("rfilter"         , mfilmRFilter)
+
+
 data Film 
    = FHdrfilm      HDRfilm
    | FTiledHDRFilm TiledHDRFilm
    | FLdrfilm      LDRfilm
    | FMFilm        MFilm
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
+instance ToElement Film where
+   toElement = forwardToElement   
    
 data ReconstructionFilter
    = RFBox
@@ -1649,6 +2137,45 @@ data ReconstructionFilter
    | RFLanczos
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
 
+instance ToElement ReconstructionFilter where
+   toElement x = primitive "string" $ case x of
+      RFBox        -> "box" :: Text
+      RFTent       -> "tent"
+      RFGaussian   -> "gaussian"
+      RFMitchell   -> "mitchell"
+      RFCatmullrom -> "catmullrom"
+      RFLanczos    -> "lanczos"
+      
+data Include = Include 
+   { includeFilename :: FilePath
+   } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance ToElement Include
+
+data AnyAlias = forall a. AnyAlias (Alias a)
+
+retagRef :: Ref a -> Ref b
+retagRef = Ref . unRef
+
+retagAlias :: Alias a -> Alias b
+retagAlias (Alias x y) = Alias (retagRef x) y
+
+deriving instance Show AnyAlias
+
+instance Eq AnyAlias where
+   AnyAlias x == AnyAlias y = retagAlias x == y
+
+deriving instance Read AnyAlias
+
+instance Ord AnyAlias where
+   AnyAlias x `compare` AnyAlias y = retagAlias x `compare` y
+   
+   
+deriving instance Typeable AnyAlias
+
+instance ToElement AnyAlias where
+   toElement (AnyAlias x) = toElement x
+      
 data SceneNodeData 
    = SNShape             Shape
    | SNBSDF              BSDF
@@ -1663,31 +2190,16 @@ data SceneNodeData
    | SNSampleGenerator   SampleGenerator
    | SNFilms             Film
    | SInclude            Include
-   | SAlias              Alias
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-instance ToXML SceneNodeData where
-   toXML = \case
-      SNShape             x -> toXML x
-      SNBSDF              x -> toXML x
-      SNTexture           x -> toXML x
-      SNSSS               x -> toXML x
-      SNPartcipatingMedia x -> toXML x
-      SNPhaseFunction     x -> toXML x
-      SNVolumeDataSource  x -> toXML x
-      SNEmitter           x -> toXML x
-      SNSensor            x -> toXML x
-      SNIntegrator        x -> toXML x
-      SNSampleGenerator   x -> toXML x
-      SNFilms             x -> toXML x
-      SInclude            x -> [xmlQQ| <include filename="{x}"/>|]
-      SAlias              x -> toXML x
+   | SAlias              AnyAlias
+   deriving (Show, Eq, Read, Ord, Generic, Typeable)
 
+instance ToElement SceneNodeData where
+   toElement = forwardToElement
 
 data SceneNode = SceneNode 
    { nodeData :: SceneNodeData
    , nodeId   :: Maybe String
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   } deriving(Eq, Show, Ord, Read, Typeable, Generic)
 
 instance ToElement SceneNode where
    toElement SceneNode {..} = case nodeId of
@@ -1697,11 +2209,11 @@ instance ToElement SceneNode where
 data Scene = Scene 
    { version :: (Int, Int, Int)
    , nodes   :: [SceneNode]
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   } deriving(Eq, Show, Ord, Read, Typeable, Generic)
 
-instance ToXML Scene where
-   toXML (Scene (x, y, z) nodes) 
-      = t "scene" ! a "version" (intercalate "." $ map show [x, y, z])
-            $ toXML nodes
+instance ToElement Scene where
+   toElement (Scene (x, y, z) nodes) 
+      = addChildList 
+         (tag "scene" # ("version", intercalate "." $ map show [x, y, z]))
+         nodes
             
--}
