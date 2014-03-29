@@ -266,7 +266,7 @@ instance Default OBJ
 instance ToElement OBJ
 
 data Serialized = Serialized 
-   { serializedFileName       :: String
+   { serializedFilename       :: String
    , serializedShapeIndex     :: Int
    , serializedFaceNormals    :: Bool
    , serializedMaxSmoothAngle :: Double
@@ -277,11 +277,11 @@ instance Default Serialized
 instance ToElement Serialized
 
 data PLY = PLY 
-   { plyFileName       :: String
+   { plyFilename       :: String
    , plyFaceNormals    :: Bool
    , plyMaxSmoothAngle :: Double
    , plyFlipNormals    :: Bool
-   , plySRGB           :: Bool
+   , plySrgb           :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default PLY
@@ -1389,13 +1389,13 @@ instance ToElement ShapeLeaf where
        
 
 data Shape 
-  = SGroup     [Shape]
+  = SShapeGroup     [Shape]
   | SShapeLeaf ShapeLeaf
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance ToElement Shape where
    toElement = \case
-     SGroup xs -> (tag "shape" # ("type", "shapegroup")) 
+     SShapeGroup xs -> (tag "shape" # ("type", "shapegroup")) 
                     `addChildList` map toElement xs
      SShapeLeaf x -> toElement x
        
@@ -1408,11 +1408,26 @@ instance HasToWorld Shape where
 
 instance HasBSDF Shape where
   bsdf f = \case
-    SGroup xs    -> SGroup     <$> traverse (bsdf f) xs
-    SShapeLeaf x -> SShapeLeaf <$> bsdf f x
+    SShapeGroup xs -> SShapeGroup     <$> traverse (bsdf f) xs
+    SShapeLeaf x   -> SShapeLeaf <$> bsdf f x
 
 objMaterialMap :: Traversal' Shape (Map Text (Child BSDF)) 
 objMaterialMap = _SShapeLeaf . shapeLeafLeafL . _Right . objLeafMaterialL . _Right
+
+shapeLeaf :: ShapeType -> Shape 
+shapeLeaf st = SShapeLeaf
+    $ ShapeLeaf
+        ( Left
+        $ SimpleShapeLeaf 
+            st
+            (CNested diffuse)
+        )
+        mempty
+        Nothing
+        Nothing
+
+cube :: Shape
+cube = shapeLeaf $ STCube $ Cube False
 
 sphere :: Double -> Shape 
 sphere radius 
@@ -1489,6 +1504,46 @@ obj filePath
       mempty
       Nothing
       Nothing
+
+ply :: FilePath -> Shape
+ply filePath = SShapeLeaf
+    $ ShapeLeaf
+        ( Left
+        $ SimpleShapeLeaf 
+            (STPLY $ PLY filePath True 0.0 False False)
+            (CNested diffuse)
+        )
+        mempty
+        Nothing
+        Nothing
+
+objMultiMaterial :: FilePath -> Shape
+objMultiMaterial filePath
+  = SShapeLeaf
+  $ ShapeLeaf
+      ( Right
+      $ OBJLeaf
+          ( OBJ 
+              filePath
+              False
+              0.0
+              False
+              False
+          )
+         (Right mempty)
+      )
+      mempty
+      Nothing
+      Nothing
+      
+serialized :: FilePath -> Shape
+serialized filepath = shapeLeaf $ STSerialized $ Serialized
+  { serializedFilename       = filepath
+  , serializedShapeIndex     = 0
+  , serializedFaceNormals    = True
+  , serializedMaxSmoothAngle = 0.0
+  , serializedFlipNormals    = False
+  }
 
 data Dipole = Dipole 
    { dipoleMaterialStyle :: MaterialStyle

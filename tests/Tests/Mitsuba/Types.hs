@@ -477,64 +477,109 @@ case_obj_1_toXML
   </shape>
   |]
 
-
 actualObj2 
-  = obj "myShape.obj"
+  = objMultiMaterial "myShape.obj"
   & objMaterialMap . at "Glass" .~ Just (CNested $ dielectric 1.5 1.5)
   & objMaterialMap . at "Water" .~ Just (CNested $ dielectric 1.333 1.333)
 
 -- Third
 -- This is different
 -- all of sudden 
-_case_obj_2_toXML 
-  = toXML actualObj2 @?= [xmlQQ|
+case_obj_2_toXML 
+  = actualObj2 `assertElement` [xmlQQ|
   <shape type="obj">
+    <transform name="toWorld"/>
+    <bool name="faceNormals" value="false"/>
+    <bool name="flipTexCoords" value="false"/>
+    <float name="maxSmoothAngle" value="0.0"/>
     <string name="filename" value="myShape.obj"/> 
     
     <bsdf name="Glass" type="dielectric">
       <float name="intIOR" value="1.5"/> 
+      <float name="extIOR" value="1.5"/>
+      <texture name="specularReflectance"/>
+      <texture name="specularTransmittance"/>
     </bsdf>
     
     <bsdf name="Water" type="dielectric">
       <float name="intIOR" value="1.333"/>
+      <float name="extIOR" value="1.333"/>
+      <texture name="specularReflectance"/>
+      <texture name="specularTransmittance"/>
     </bsdf> 
+    
+    <bool name="flipNormals" value="false"/>
   </shape>
   
   
   |]
 
 -- TODO PLY
+actualPLY = ply "myShape.ply"
 
-{-
-_case_PLY_toXML 
-  = toXML actualPLY 
+case_PLY_toXML 
+  = actualPLY `assertElement` [xmlQQ|
+      <shape type="ply">
+        <transform name="toWorld"/>
+        
+        <bsdf type="diffuse">
+          <spectrum name="reflectance" value="1.0" />
+        </bsdf>
+        
+        <string name="filename" value="myShape.ply"/> 
+        
+        <float name="maxSmoothAngle" value="0.0"/>
+        <bool name="srgb" value="false"/>
+        <bool name="flipNormals" value="false"/>
+        <bool name="faceNormals" value="true"/>
+      </shape>
 
--- TODO Serialized
--}
+  |]
 
-{-
-_case_shapegroup_nested_toXML 
-  = toXML () @?= [xmlQQ|
-  <shape type="shapegroup" id="myShapeGroup"> 
-    <shape type="ply">
-      <string name="filename" value="data.ply"/>
-      <bsdf type="roughconductor"/> 
+actualSerialized = serialized "myShape.serialized"
+
+case_Serialized_toXML 
+  = actualSerialized `assertElement` [xmlQQ|
+    <shape type="serialized">
+      <transform name="toWorld"/>
+      
+      <bsdf type="diffuse">
+        <spectrum name="reflectance" value="1.0"/>
+      </bsdf>
+      
+      <string name="filename" value="myShape.serialized"/>
+      <bool name="faceNormals" value="true" />
+      <bool name="flipNormals" value="false" />
+      <float name="maxSmoothAngle" value="0.0"/>
+      <integer name="shapeIndex" value="0" />
     </shape>
-    
-    <shape type="sphere"> 
-      <transform name="toWorld">
-        <scale value="5"/>
-        <translate y="20"/> 
-      </transform>
-      <bsdf type="diffuse"/> 
+  
+  
+  |]
+
+actualNested = SShapeGroup [cube, cube]
+
+case_shapegroup_nested_toXML 
+  = actualNested `assertElement` [xmlQQ|
+  <shape type="shapegroup"> 
+    <shape type="cube">
+      <transform name="toWorld"/>
+      <bsdf type="diffuse">
+        <spectrum name="reflectance" value="1.0"/>
+      </bsdf>
+      <bool name="flipNormals" value="false"/>
     </shape>
-    
+    <shape type="cube">
+      <transform name="toWorld"/>
+      <bsdf type="diffuse">
+        <spectrum name="reflectance" value="1.0"/>
+      </bsdf>
+      <bool name="flipNormals" value="false"/>
+    </shape>
   </shape>
 
   |]
--}
 
-{-
 _case_instance_0_toXML 
   = toXML () @?= [xmlQQ|
   <shape type="instance">
@@ -542,6 +587,7 @@ _case_instance_0_toXML
   </shape>
   |]
 
+{-
 _case_instance_1_toXML 
   = toXML () @?= [xmlQQ|
   <shape  type="instance">
