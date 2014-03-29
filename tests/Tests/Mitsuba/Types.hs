@@ -4,6 +4,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 module Tests.Mitsuba.Types where
 import Mitsuba.Types
+import Mitsuba.Utils
 import Mitsuba.Element
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -580,53 +581,119 @@ case_shapegroup_nested_toXML
 
   |]
 
-_case_instance_0_toXML 
-  = toXML () @?= [xmlQQ|
+actualInstance = instanceShape (Ref "myShapeGroup")
+
+case_instance_0_toXML 
+  = actualInstance `assertElement` [xmlQQ|
   <shape type="instance">
+    <transform name="toWorld"/>
+    <bsdf type="diffuse">
+      <spectrum name="reflectance" value="1.0"/>
+    </bsdf>
     <ref id="myShapeGroup"/>
   </shape>
   |]
 
-{-
-_case_instance_1_toXML 
-  = toXML () @?= [xmlQQ|
-  <shape  type="instance">
+
+actualInstance1 
+  = instanceShape (Ref "myShapeGroup") 
+  & toWorld .~ TRegular
+      (  rotateX 45
+      <> uniformScale 1.5
+      <> translate 0 0 10
+      )
+      
+case_instance_1_toXML 
+  = actualInstance1 `assertElement` [xmlQQ|
+  <shape type="instance">
     <ref id="myShapeGroup"/> 
     <transform name="toWorld">
-      <rotate x="1" angle="45"/>
+      <rotate x="1.0" y="0.0" z="0.0" angle="45.0"/>
       <scale value="1.5"/>
-      <translate z="10"/>
+      <translate x="0.0" y="0.0" z="10.0"/>
     </transform>
-  </shape>
+    
+    <bsdf type="diffuse">
+      <spectrum name="reflectance" value="1.0"/>
+    </bsdf>
+  </shape>  
+  |]
   
-  
+actualHair = hair "myHair.hair"
+
+case_hair_toXML 
+  = actualHair `assertElement` [xmlQQ|
+     <shape type="hair">
+          <string name="filename" value="myHair.hair" />
+          <float name="radius"         value="1.0" /> 
+          <float name="angleThreshold" value="0.0" /> 
+          <float name="reduction" value="0.0" /> 
+          <integer name="width" value="1" /> 
+          <integer name="height" value="1" /> 
+          <texture type="checkerboard" name="texture">
+            <blackbody name="color1" scale="0.0" temperature="0k"/>
+            <blackbody name="color0" scale="0.0" temperature="0k"/>
+
+            <float name="uoffset" value="0.0"/>
+            <float name="voffset" value="0.0"/>
+
+            <float name="uscale" value="0.0"/>
+            <float name="vscale" value="0.0"/>
+          </texture>
+          
+            <transform name="toWorld"/>
+          
+          <bsdf type="diffuse">
+            <spectrum name="reflectance" value="1.0"/>
+          </bsdf>
+
+     </shape>
   |]
 
--- TODO hair 
--- TODO hair binary and ascii format
-_case_heightfield_toXML
-  = toXML () @?= [xmlQQ|
+actualHeightField = heightField "mountain_profile.png"
+
+
+
+case_heightfield_toXML
+  = actualHeightField `assertElement` [xmlQQ|
     <shape type="heightfield"> 
-      <texture type="scale">
-        <float name="scale" value="0.5"/> 
-        <texture type="bitmap">
-          <float name="gamma" value="1"/>
-          <string name="filename" value="mountain_profile.png"/> 
+        <texture type="checkerboard" name="texture">
+          <blackbody name="color1" scale="0.0" temperature="0k"/>
+          <blackbody name="color0" scale="0.0" temperature="0k"/>
+
+          <float name="uoffset" value="0.0"/>
+          <float name="voffset" value="0.0"/>
+
+          <float name="uscale" value="0.0"/>
+          <float name="vscale" value="0.0"/>
         </texture>
-      </texture>
+        
+        <bool name="shadingNormals" value="true" />
+        <bool name="flipNormals"    value="false" />
+        
+        <transform name="toWorld"/>
+        
+        <bsdf type="diffuse">
+          <spectrum name="reflectance" value="1.0"/>
+        </bsdf>
+        
+        <integer name="width" value="1" />
+        <integer name="height" value="1"/>
+        <float name="scale" value="1.0" />
+        <string name="filename" value="mountain_profile.png" />
     </shape>
   |]
 
-
+{-
 _case_diffuse_0_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <bsdf type="diffuse">
       <srgb name="reflectance" value="#6d7185"/>
     </bsdf>
   |]
 
 _case_diffuse_1_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="diffuse">
     <texture type="bitmap" name="reflectance">
       <string name="filename" value="wood.jpg"/>
@@ -637,7 +704,7 @@ _case_diffuse_1_toXML
 --TODO rough diffuse
 
 _case_dielectric_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <bsdf type="dielectric">
       <string name="intIOR" value="water"/>
       <string name="extIOR" value="air"/> 
@@ -647,7 +714,7 @@ _case_dielectric_toXML
 -- TODO thin dielectric
 
 _case_roughdielectric_0_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="roughdielectric">
     <string name="distribution" value="ggx"/>
     <float name="alpha" value="0.304"/> 
@@ -657,7 +724,7 @@ _case_roughdielectric_0_toXML
   |]
 
 _case_roughdielectric_1_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="roughdielectric">
     <string name="distribution" value="beckmann"/> 
     <float name="intIOR" value="1.5046"/>
@@ -671,7 +738,7 @@ _case_roughdielectric_1_toXML
   |]
 
 _case_conductor_0_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <bsdf type="conductor">
       <string name="material" value="Au"/>
     </bsdf>
@@ -679,7 +746,7 @@ _case_conductor_0_toXML
 
 
 _case_conductor_1_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="conductor">
     <spectrum name="eta" filename="conductorIOR.eta.spd"/> 
     <spectrum name="k" filename="conductorIOR.k.spd"/>
@@ -687,7 +754,7 @@ _case_conductor_1_toXML
   |]
   
 _case_roughconductor_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="roughconductor">
     <string name="material" value="Al"/> 
     <string name="distribution" value="as"/> 
@@ -697,7 +764,7 @@ _case_roughconductor_toXML
   |]
 
 _case_plastic_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="plastic">
     <srgb name="diffuseReflectance" value="#18455c"/> 
     <float name="intIOR" value="1.9"/>
@@ -705,7 +772,7 @@ _case_plastic_toXML
   |]
 
 _case_roughplastic_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="roughplastic">
     <string name="distribution" value="beckmann"/>
     <float name="intIOR" value="1.61"/>
@@ -721,7 +788,7 @@ _case_roughplastic_toXML
 
 
 _case_coating_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <bsdf type="coating">
       <float name="intIOR" value="1.7"/>
       <bsdf type="roughconductor">
@@ -732,7 +799,7 @@ _case_coating_toXML
   |]
 
 _case_bump_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="bump">
   
   <bsdf type="roughconductor"/>
@@ -750,7 +817,7 @@ _case_bump_toXML
 -- TODO ward
 
 _case_mixturebsdf_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="mixturebsdf">
     <string name="weights" value="0.7, 0.3"/>
     
@@ -765,7 +832,7 @@ _case_mixturebsdf_toXML
 
 
 _case_blendbsdf_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="blendbsdf">
     <texture name="weight" type="bitmap">
       <string name="wrapMode" value="repeat"/>
@@ -783,7 +850,7 @@ _case_blendbsdf_toXML
   |]
 
 _case_mask_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="mask">
     <!-- Base material: a two-sided textured diffuse BSDF --> 
     <bsdf type="twosided">
@@ -802,7 +869,7 @@ _case_mask_toXML
   |]
 
 _case_twosided_toXML
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <bsdf type="twosided"> 
       <bsdf type="diffuse">
         <spectrum name="reflectance" value="0.4"/>
@@ -812,7 +879,7 @@ _case_twosided_toXML
   
 --TODO difftrans
 _case_hk_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <bsdf type="hk">
     <spectrum name="sigmaS" value="2"/>
     <spectrum name="sigmaA" value="0.1"/> 
@@ -829,7 +896,7 @@ _case_hk_toXML
 -- TODO gridtexture
 
 _case_scale_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <texture type="scale">
     <float name="scale" value="0.5"/>
     <texture type="bitmap">
@@ -839,7 +906,7 @@ _case_scale_toXML
   |]
   
 _case_vertexcolors_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <shape type="ply">
     <string name="filename" value="mesh.ply"/>
     <bsdf type="diffuse">
@@ -853,7 +920,7 @@ _case_vertexcolors_toXML
 -- TODO curvature
 
 _case_dipole_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <subsurface type="dipole">
     <string name="intIOR" value="water"/>
     <string name="extIOR" value="air"/>
@@ -864,7 +931,7 @@ _case_dipole_toXML
   |]
 
 _case_homogeneous_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <medium id="myMedium" type="homogeneous"> 
     <spectrum name="sigmaS" value="1"/> 
     <spectrum name="sigmaA" value="0.05"/>
@@ -876,7 +943,7 @@ _case_homogeneous_toXML
   |]
   
 _case_heterogeneous_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <medium type="heterogeneous" id="smoke">
     <string name="method" value="simpson"/>
 
@@ -895,27 +962,27 @@ _case_heterogeneous_toXML
   |]
 
 _case_isotropic_toXML 
-  = toXML () @?= [xmlQQ|<phase type="isotropic"/>|]
+  = () `assertElement` [xmlQQ|<phase type="isotropic"/>|]
 
 
 --TODO hg phase function, rayleigh, kkay, microflake, mixturephase
 
 _case_constvolume_0_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <volume type="constvolume" >
     <float name="value" value="1"/>
   </volume>
   |]
 
 _case_constvolume_1_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <volume type="constvolume" >
     <rgb name="value" value="0.9 0.9 0.7"/>
   </volume>
   |]
 
 _case_constvolume_2_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <volume type="constvolume" >
     <vector name="value" x="0" y="1" z="0"/> 
   </volume>
@@ -928,7 +995,7 @@ _case_constvolume_2_toXML
 -- TODO point light
 
 _case_area_toXML
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <shape type="sphere"> 
       <emitter type="area">
         <spectrum name="radiance" value="1"/>
@@ -937,7 +1004,7 @@ _case_area_toXML
   |]
 
 _case_spot_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <emitter type="spot">
     <transform name="toWorld">
       <lookat origin="1, 1, 1" target="1, 2, 1"/> 
@@ -952,7 +1019,7 @@ _case_spot_toXML
 
 -- TODO make another with more params
 _case_sky_toXML_0
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
     <emitter type="sky"> 
       <transform name="toWorld">
         <rotate x="1" angle="90"/>
@@ -967,7 +1034,7 @@ _case_sky_toXML_0
 
 -- TODO more perspective tests
 _case_perspective_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <sensor type="perspective">
     <transform name="toWorld">
       <lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>
@@ -976,7 +1043,7 @@ _case_perspective_toXML
   |]
   
 _case_thinlens_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <sensor type="thinlens">
     <transform name="toWorld">
       <lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>
@@ -989,7 +1056,7 @@ _case_thinlens_toXML
   |]
 
 _case_orthographic_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
   <sensor type="orthographic"> 
     <transform name="toWorld">
       <scale x="10" y="10"/>
@@ -1002,7 +1069,7 @@ _case_orthographic_toXML
 --TODO spherical
 
 _case_irradiancemeter_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <sensor type="irradiancemeter">
   <film type="mfilm"/>
   <sampler type="independent">
@@ -1013,7 +1080,7 @@ _case_irradiancemeter_toXML
   |]
   
 _case_radiancemeter_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <sensor type="radiancemeter">
   <transform name="toWorld">
     <lookat origin="1,2,3" target="0,0,0"/>
@@ -1027,7 +1094,7 @@ _case_radiancemeter_toXML
   |]
   
 _case_fluencemeter_toXML
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <sensor type="fluencemeter">
   <transform name="toWorld">
     <translate x="1" y="2" z="3"/>
@@ -1283,7 +1350,7 @@ This parameter can be used to set a scramble value to break up temporally cohere
 
 
 _case_hdrfilm_0_toXML
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <film type="hdrfilm">
   <string name="pixelFormat" value="rgba"/>
   <integer name="width" value="1920"/>
@@ -1293,7 +1360,7 @@ _case_hdrfilm_0_toXML
 |]
 
 _case_hdrfilm_1_toXML
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <film type="hdrfilm">
   <string name="metadata['key_name']" value="Hello!"/>
   <string name="label[50, 80]" value="Hello!"/>
@@ -1400,7 +1467,7 @@ edges, especially when using very large reconstruction fil- ters. In general (an
 
 
 _case_rfilter_toXML 
-  = toXML () @?= [xmlQQ|
+  = () `assertElement` [xmlQQ|
 <rfilter type="lanczos">
   <integer name="lobes" value="2"/>
 </rfilter>

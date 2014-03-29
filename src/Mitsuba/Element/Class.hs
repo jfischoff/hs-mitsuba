@@ -180,13 +180,15 @@ addNested :: Element -> Name -> Element -> Visibility -> Element
 addNested x n e v = addChild x n e $ Nested v
 
 
-infixl 1 .>
+infixl 6 .>
 
 addNestedShown :: ToElement a => Element -> (Text, a) -> Element
 addNestedShown = (.>)
 
 (.>) :: ToElement a => Element -> (Text, a) -> Element
 x .> (n, e) = addNested x n (toElement e) Shown
+
+infixl 6 .!>
 
 (.!>) :: ToElement a => Element -> (Text, a) -> Element
 x .!> (n, e) = addNested x n (toElement e) Hidden

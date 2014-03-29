@@ -38,10 +38,9 @@ import Mitsuba.LensTH
 import Data.Default.Generics
 import Data.Map (Map)
 import qualified Data.Map as M
+import Language.Haskell.TH.Module.Magic
+import MonadUtils
 default (Text, Integer, Double)
-
-class HasToWorld a where
-  toWorld :: Traversal' a Transform
 
 tshow :: Show a => a -> Text
 tshow = T.pack . show
@@ -287,8 +286,18 @@ data PLY = PLY
 instance Default PLY
 instance ToElement PLY
 
+data Instance = Instance 
+  { instanceRef     :: Ref Shape
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+  
+instance Default Instance
+
+instance ToElement Instance where
+  toElement Instance {..} = tag "dummy" 
+    .!> ("ref"    , instanceRef)
+
 data Hair = Hair 
-   { hairFileName       :: String
+   { hairFilename       :: String
    , hairRadius         :: Double
    , hairAngleThreshold :: Double
    , hairReduction      :: Double
@@ -300,11 +309,23 @@ data Hair = Hair
 instance Default Hair   
 instance ToElement Hair
 
+data HeightField = HeightField
+  { heightFieldShadingNormals :: Bool
+  , heightFieldFlipNormals    :: Bool
+  , heightFieldWidth          :: Integer
+  , heightFieldHeight         :: Integer
+  , heightFieldScale          :: Double
+  , heightFieldFilename       :: FilePath
+  , heightFieldTexture        :: Texture
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Default HeightField   
+instance ToElement HeightField
+
 data Diffuse = Diffuse 
    { diffuseReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-makeLensesL ''Diffuse
 instance Default Diffuse
 instance ToElement Diffuse
    
@@ -628,14 +649,6 @@ data RoughPlastic = RoughPlastic
 instance Default RoughPlastic
 instance ToElement RoughPlastic
 
-class HasBSDF a where
-  bsdf :: Traversal' a BSDF
-
-instance HasBSDF (Child BSDF) where
-  bsdf f = \case
-    CRef x -> CRef <$> pure x
-    CNested x -> CNested <$> f x
-
 data SmoothDielectricCoating = SmoothDielectricCoating
    { smoothDielectricCoatingIntIOR             :: Refraction
    , smoothDielectricCoatingExtIOR             :: Refraction
@@ -810,33 +823,6 @@ data BSDF
 instance Default BSDF
 instance ToElement BSDF
 
-makePrisms ''BSDF
-
-twosided :: BSDF -> BSDF
-twosided = BSDFTwosided . Twosided . CNested
-
-diffuse :: BSDF
-diffuse = BSDFDiffuse $ Diffuse $ CSpectrum $ SUniform 1.0
-
-class DielectricI a where
-  dielectric :: a -> a -> BSDF
-
-instance DielectricI Double where
-  dielectric x y = BSDFDielectric $ Dielectric 
-     { dielectricIntIOR                = IOR x
-     , dielectricExtIOR                = IOR y
-     , dielectricSpecularReflectance   = def
-     , dielectricSpecularTransmittance = def
-     }
-  
-instance DielectricI KnownMaterial where
-  dielectric x y = BSDFDielectric $ Dielectric 
-     { dielectricIntIOR                = RKM x
-     , dielectricExtIOR                = RKM y
-     , dielectricSpecularReflectance   = def
-     , dielectricSpecularTransmittance = def
-     }
-    
 
 data PointLight = PointLight
    { pointLightToWorld        :: Transform
@@ -984,21 +970,24 @@ data Emitter
 instance Default Emitter
 instance ToElement Emitter
 
+
+
 -- There are three types of shapes
 -- node (shapegroup)
 -- leaf 
 --    multishader
 --    singleshader
 data ShapeType 
-   = STCube       Cube
-   | STSphere     Sphere
-   | STCylinder   Cylinder
-   | STRectangle  Rectangle
-   | STDisk       Disk
-   | STPLY        PLY
-   | STSerialized Serialized
-   | STInstance   String
-   | STHair       Hair
+   = STCube        Cube
+   | STSphere      Sphere
+   | STCylinder    Cylinder
+   | STRectangle   Rectangle
+   | STDisk        Disk
+   | STPLY         PLY
+   | STSerialized  Serialized
+   | STInstance    Instance 
+   | STHair        Hair
+   | STHeightField HeightField
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default ShapeType
@@ -1012,15 +1001,16 @@ class ToShapeType a where
 
 instance ToShapeType ShapeType where
   toShapeType = \case
-     STCube       {} -> "cube"
-     STSphere     {} -> "sphere"
-     STCylinder   {} -> "cylinder"
-     STRectangle  {} -> "rectangle"
-     STDisk       {} -> "disk"
-     STPLY        {} -> "ply"
-     STSerialized {} -> "serialized"
-     STInstance   {} -> "instance"
-     STHair       {} -> "hair"
+     STCube        {} -> "cube"
+     STSphere      {} -> "sphere"
+     STCylinder    {} -> "cylinder"
+     STRectangle   {} -> "rectangle"
+     STDisk        {} -> "disk"
+     STPLY         {} -> "ply"
+     STSerialized  {} -> "serialized"
+     STInstance    {} -> "instance"
+     STHair        {} -> "hair"
+     STHeightField {} -> "heightfield"
 
   
 --TODO instances
@@ -1295,7 +1285,6 @@ data OBJLeaf = OBJLeaf
   , objLeafMaterial   :: Either (Child BSDF) (Map Text (Child BSDF))
   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-makeLensesL ''OBJLeaf
 
 instance ToElement OBJLeaf where
   toElement OBJLeaf {..} 
@@ -1313,31 +1302,19 @@ instance ToElement OBJLeaf where
 instance ToShapeType OBJLeaf where
   toShapeType _ = "obj"
 
-instance HasBSDF OBJLeaf where
-  bsdf f OBJLeaf {..} 
-     =  OBJLeaf objLeafObj 
-    <$> case objLeafMaterial of
-          Left  x -> Left  <$> bsdf f x
-          Right x -> Right <$> pure x
-
 data SimpleShapeLeaf = SimpleShapeLeaf 
   { simpleShapeLeafType       :: ShapeType
   , simpleShapeLeafMaterial   :: Child BSDF
   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-makeLensesL ''SimpleShapeLeaf
 
-instance HasBSDF SimpleShapeLeaf where
-  bsdf = simpleShapeLeafMaterialL . bsdf
-  
 instance Default SimpleShapeLeaf
 instance ToElement SimpleShapeLeaf where
   toElement SimpleShapeLeaf {..}
-    =  tag "dummy" 
-   .!> ("material", simpleShapeLeafMaterial)
+    =  (tag "dummy" 
+   .!> ("material", simpleShapeLeafMaterial))
     `appendChildren`
       simpleShapeLeafType
-      
       
 instance ToShapeType SimpleShapeLeaf where
   toShapeType = toShapeType . simpleShapeLeafType
@@ -1349,20 +1326,8 @@ data ShapeLeaf = ShapeLeaf
    , shapeLeafEmitter    :: Maybe (Child Emitter)
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-instance (HasBSDF a, HasBSDF b) => HasBSDF (Either a b) where
-  bsdf f = \case
-    Left  x -> Left  <$> bsdf f x
-    Right x -> Right <$> bsdf f x
-
-makeLensesL ''ShapeLeaf
-
-instance HasToWorld ShapeLeaf where
-  toWorld = shapeLeafToWorldL
 
 instance Default ShapeLeaf
-
-instance HasBSDF ShapeLeaf where
-  bsdf = shapeLeafLeafL.bsdf
 
 instance (ToShapeType a, ToShapeType b) => ToShapeType (Either a b) where
   toShapeType = \case
@@ -1386,11 +1351,10 @@ instance ToElement ShapeLeaf where
           )
        <> (maybeToList . fmap toElement) shapeLeafEmitter
        )
-       
 
 data Shape 
-  = SShapeGroup     [Shape]
-  | SShapeLeaf ShapeLeaf
+  = SShapeGroup [Shape]
+  | SShapeLeaf  ShapeLeaf
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance ToElement Shape where
@@ -1398,152 +1362,8 @@ instance ToElement Shape where
      SShapeGroup xs -> (tag "shape" # ("type", "shapegroup")) 
                     `addChildList` map toElement xs
      SShapeLeaf x -> toElement x
-       
 
 instance Default Shape
-makePrisms ''Shape
-
-instance HasToWorld Shape where
-  toWorld = _SShapeLeaf . toWorld
-
-instance HasBSDF Shape where
-  bsdf f = \case
-    SShapeGroup xs -> SShapeGroup     <$> traverse (bsdf f) xs
-    SShapeLeaf x   -> SShapeLeaf <$> bsdf f x
-
-objMaterialMap :: Traversal' Shape (Map Text (Child BSDF)) 
-objMaterialMap = _SShapeLeaf . shapeLeafLeafL . _Right . objLeafMaterialL . _Right
-
-shapeLeaf :: ShapeType -> Shape 
-shapeLeaf st = SShapeLeaf
-    $ ShapeLeaf
-        ( Left
-        $ SimpleShapeLeaf 
-            st
-            (CNested diffuse)
-        )
-        mempty
-        Nothing
-        Nothing
-
-cube :: Shape
-cube = shapeLeaf $ STCube $ Cube False
-
-sphere :: Double -> Shape 
-sphere radius 
-  = SShapeLeaf 
-  $ ShapeLeaf 
-    ( Left
-    $ SimpleShapeLeaf 
-        (STSphere $ Sphere zeroPoint radius True)
-        (CNested diffuse) 
-    )
-    mempty
-    Nothing
-    Nothing
-      
-cylinder :: Double -> Shape 
-cylinder radius 
-  = SShapeLeaf
-  $ ShapeLeaf
-      ( Left
-      $ SimpleShapeLeaf
-          (STCylinder $ Cylinder zeroPoint (Point 0 1 0) radius True)
-          (CNested diffuse)
-      )
-      mempty
-      Nothing
-      Nothing
-
--- TODO make the rectangle command
-square :: Shape
-square 
-  = SShapeLeaf
-  $ ShapeLeaf 
-      ( Left 
-      $ SimpleShapeLeaf 
-          (STRectangle $ Rectangle True)
-          (CNested diffuse)
-      )
-      mempty
-      Nothing
-      Nothing
-
---rectangle :: Double -> Double -> Shape 
---rectangle width height 
---  = Shape (STRectangle )
-
-disk :: Shape
-disk 
-  = SShapeLeaf
-  $ ShapeLeaf
-    ( Left
-    $ SimpleShapeLeaf 
-        (STDisk $ Disk True)
-        (CNested diffuse)
-    )
-    mempty
-    Nothing
-    Nothing  
-      
-obj :: FilePath -> Shape 
-obj filePath
-  = SShapeLeaf
-  $ ShapeLeaf
-      ( Right
-      $ OBJLeaf
-          ( OBJ 
-              filePath
-              False
-              0.0
-              False
-              False
-          )
-         (Left $ CNested diffuse)
-      )
-      mempty
-      Nothing
-      Nothing
-
-ply :: FilePath -> Shape
-ply filePath = SShapeLeaf
-    $ ShapeLeaf
-        ( Left
-        $ SimpleShapeLeaf 
-            (STPLY $ PLY filePath True 0.0 False False)
-            (CNested diffuse)
-        )
-        mempty
-        Nothing
-        Nothing
-
-objMultiMaterial :: FilePath -> Shape
-objMultiMaterial filePath
-  = SShapeLeaf
-  $ ShapeLeaf
-      ( Right
-      $ OBJLeaf
-          ( OBJ 
-              filePath
-              False
-              0.0
-              False
-              False
-          )
-         (Right mempty)
-      )
-      mempty
-      Nothing
-      Nothing
-      
-serialized :: FilePath -> Shape
-serialized filepath = shapeLeaf $ STSerialized $ Serialized
-  { serializedFilename       = filepath
-  , serializedShapeIndex     = 0
-  , serializedFaceNormals    = True
-  , serializedMaxSmoothAngle = 0.0
-  , serializedFlipNormals    = False
-  }
 
 data Dipole = Dipole 
    { dipoleMaterialStyle :: MaterialStyle
@@ -2340,4 +2160,6 @@ instance ToElement Scene where
          (tag "scene" # ("version", intercalate "." $ map show [x, y, z]))
          nodes
             
-makePrisms ''Color
+
+concatMapM makePrisms  . mapMaybe dataDataName =<< declarations
+concatMapM makeLensesL . mapMaybe dataName =<< declarations

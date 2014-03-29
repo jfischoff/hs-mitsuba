@@ -22,6 +22,7 @@ library
                  , Mitsuba.Generic
                  , Mitsuba.LensTH
                  , Mitsuba.Types
+                 , Mitsuba.Utils
   -- other-modules:       
   other-extensions:    ExtendedDefaultRules, OverloadedStrings
   build-depends: base >=4.6 && <4.7
@@ -40,6 +41,8 @@ library
                , xml >= 1.3.13 
                , fixed-vector >= 0.6.3.1
                , data-default-generics >= 0.3
+               , modulespection >= 0.1.0.7
+               , ghc
                
   hs-source-dirs:      src
   default-language:    Haskell2010
@@ -72,4 +75,6 @@ test-suite tasty
                 , text-xml-qq >= 0.2
                 , fixed-vector >= 0.6.3.1
                 , data-default-generics >= 0.3
+                , modulespection >= 0.1.0.7
+                , ghc
    
