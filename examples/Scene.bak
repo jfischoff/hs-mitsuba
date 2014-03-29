@@ -1,0 +1,26 @@
+<scene version="0.4.5"> 
+    <integrator type="path">
+        <integer name="maxDepth" value="8"/> 
+    </integrator>
+    
+    <sensor type="perspective">
+        <transform name="toWorld">
+            <rotate y="1" angle="180"/> 
+        </transform>
+        <float name="fov" value="45"/>
+
+        <sampler type="independent">
+            <integer name="sampleCount" value="32"/>
+        </sampler>
+
+        <film type="hdrfilm">
+            <integer name="width" value="1920"/> <integer name="height" value="1080"/>
+        </film> 
+    </sensor>
+
+    <shape type="cube">
+        <bsdf type="roughdielectric">
+        </bsdf> 
+    </shape>
+
+</scene>

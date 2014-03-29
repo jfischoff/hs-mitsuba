@@ -22,6 +22,9 @@ default (Text, Integer, Double)
 
 type Name = Text
 
+instance Show (a -> b) where
+  show _ = "show f"
+
 data Visibility = Shown | Hidden
    deriving (Eq, Show, Read, Ord, Bounded, Enum)
 
@@ -32,12 +35,13 @@ data ChildType
    -- ^ This is here as a way to combine the children of the attribute 
    --   to the attribute value. Sometimes they are " " seperatored
    --   usually it 
+   deriving (Show)
 
 data ChildItem = ChildItem 
    { childItemType          :: ChildType
    -- ^ Is it an attribute of a nested tag
    , childItemElement       :: Element
-   }
+   } deriving (Show)
 
 type Children = HashMap Name ChildItem
 
@@ -46,7 +50,7 @@ data Element = Element
    -- ^ It is either the tag or it is primitive string
    , elementChildren :: Children
    -- ^ empty for primitive
-   }
+   } deriving (Show)
 
 makePrisms ''Visibility
 makePrisms ''ChildType

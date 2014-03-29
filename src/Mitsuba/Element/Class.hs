@@ -10,6 +10,9 @@
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE DefaultSignatures    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE RankNTypes #-}
 module Mitsuba.Element.Class where
 import Mitsuba.Element.Types
 import qualified Data.Text as T
@@ -34,6 +37,7 @@ import Mitsuba.Generic
 import Data.Char
 import Control.Monad.State
 import Control.Arrow
+import qualified Text.XML.Light.Types as XML
 default (Text, Integer, Double)
 
 class ToElement a where
@@ -61,7 +65,7 @@ instance ToElement Double where
    toElement = primitive "float" . T.pack . show
 
 instance ToElement Bool where
-   toElement = primitive "bool" . T.pack . show
+   toElement = primitive "bool" . T.toLower . T.pack . show
 
 instance ToElement Element where
    toElement = id
@@ -78,22 +82,39 @@ instance ToAttributeValue String where
 instance ToAttributeValue Text where
    toAttributeValue = id
 
-t :: Text -> MarkupM b -> MarkupM a 
-t = CustomParent . Text
+-- This class is used to either directly render the XML
+-- or create an intermediate format useful for testing
 
-ta :: Text -> [Attribute] -> MarkupM a -> MarkupM b
-ta tag as child = foldl' (!) (t tag child) as
 
-cta :: Text -> [Attribute] -> MarkupM a
-cta tag = foldl' (!) (ct tag)
+class XMLLike e a | e -> a, a -> e where
+  a   :: ToAttributeValue v => Text -> v -> a
+  ta  :: Text -> [a] -> e -> e
+  tas :: Text -> [a] -> [e] -> e
+  cta :: Text -> [a] -> e
+--  ct  :: Text -> e
 
-ct :: Text -> MarkupM a
-ct x = CustomLeaf (Text x) True
+tName :: Text -> XML.QName 
+tName x = XML.QName (T.unpack x) Nothing Nothing
 
--- TODO 
--- This should take a ToPrimtiveValue in
-a :: ToValue a => Text -> a -> Attribute
-a x = customAttribute (textTag x) . toValue
+instance XMLLike XML.Element XML.Attr where
+  a x = XML.Attr (tName x) . T.unpack . toAttributeValue
+  ta tag as child = XML.Element (tName tag) as [XML.Elem child] Nothing
+  tas tag as cs = XML.Element (tName tag) as (map XML.Elem cs) Nothing
+  cta tag as = XML.Element (tName tag) as [] Nothing
+  
+
+instance XMLLike (MarkupM ()) Attribute where
+  a x = customAttribute (textTag x) . toValue . toAttributeValue
+  
+  ta tag as child = foldl' (!) ((CustomParent . Text) tag child) as
+  
+  tas tag as cs = foldl' (!) ((CustomParent . Text) tag (foldr1 Append cs)) as
+  
+  cta tag = foldl' (!) (CustomLeaf (Text tag) True)
+  
+--  ct x =   
+  
+
 
 addChild x name e ct 
    = x & elementChildrenL.at name .~ (Just $ ChildItem ct e)
@@ -105,7 +126,18 @@ defNested = ChildItem (Nested Shown)
 
 addAttribute x name e f = addChild x name e $ Attribute f
 
-defaultAttribute = Attribute elementTag
+-- Either get the elementTag or get the value child's element tag
+defaultAttribute 
+  = Attribute 
+  $ \x -> fromMaybe (elementTag x) 
+        $ preview 
+            ( elementChildrenL 
+            . at "value" 
+            . _Just 
+            . childItemElementL 
+            . elementTagL
+            ) 
+            x
 
 addPrimitiveAttribute :: ToAttributeValue a
                       => Element
@@ -156,6 +188,9 @@ addNestedShown = (.>)
 (.>) :: ToElement a => Element -> (Text, a) -> Element
 x .> (n, e) = addNested x n (toElement e) Shown
 
+(.!>) :: ToElement a => Element -> (Text, a) -> Element
+x .!> (n, e) = addNested x n (toElement e) Hidden
+
 typeL :: Traversal' Element Name
 typeL = elementChildrenL . at "type" . _Just . childItemElementL . elementTagL
 
@@ -171,36 +206,43 @@ allAttribute = set (elementChildrenL . mapped . childItemTypeL) defaultAttribute
 allNested :: Element -> Element
 allNested = set (elementChildrenL . mapped . childItemTypeL) (Nested Shown)
 
+allInvisible :: Element -> Element 
+allInvisible = set (elementChildrenL . mapped . childItemTypeL . _Nested) Hidden
+
 --child :: Name -> Traversal' Element (Element, ChildType)
 --child name = elementChildrenL . at name . _Just
 
-toXML :: Element -> Markup
-toXML = toXML' Nothing
+toXML :: (XMLLike e a, ToElement elem) => elem -> e
+toXML = toXML' Nothing . toElement
 
-toXMLChild :: Name -> ChildType -> Element -> Either Attribute Markup
+toXMLChild :: forall e a. XMLLike e a 
+           => Name 
+           -> ChildType 
+           -> Element 
+           -> Either a e
 toXMLChild name typ e = case typ of
    Nested visibility -> 
       let maybeName = case visibility of
             Shown  -> Just name
             Hidden -> Nothing
       in Right $ toXML' maybeName e
-   Attribute renderer -> Left $ a name $ renderer e
+   Attribute renderer -> Left $ a name $ renderer e 
 
-toXML' :: Maybe Name -> Element -> Markup
+toXML' :: forall e a. XMLLike e a => Maybe Name -> Element -> e
 toXML' maybeName Element {..} = 
-   let (asAttrs, children) 
+  let (asAttrs :: [a], children) 
          = partitionEithers 
          $ map (\(k, cd) -> 
                   toXMLChild k (cd ^. childItemTypeL) (cd ^. childItemElementL)
                )
          $ H.toList elementChildren
 
-       maybeNameAttr = maybeToList $ a "name" <$> maybeName
-       attrs = maybeNameAttr ++ asAttrs
+      maybeNameAttr = maybeToList $ a "name" <$> maybeName 
+      attrs = maybeNameAttr ++ asAttrs
 
-   in case children of
+  in case children of
       [] -> cta elementTag attrs
-      xs -> ta  elementTag attrs $ foldr1 Append children
+      xs -> tas elementTag attrs children
 
 lowerFirst = (\([x], xs) -> toLower x : xs) . splitAt 1
 
@@ -250,8 +292,8 @@ makeGElement w = result where
    Last (Just ctName) = _constrName
 
    result = case ( _children, getLast _result) of
-      ([], Just x ) -> makeSumType     dtName ctName x
-      (_, Nothing ) -> makeProductType dtName _children
+      ([], Just x ) -> makeSumType     (renameDataType dtName) ctName x
+      (_, Nothing ) -> makeProductType (renameDataType dtName) _children
       _ -> error "logic error in GToElement (D1 d (C1 c f)) gToTag"
 
 makeLenses ''GToElementLog
@@ -260,7 +302,7 @@ instance (Datatype d, GToElement f) => GToElement (D1 d f) where
    gToElement (M1 x) = do 
       assign dataTypeName 
          $ last' 
-         $ renameDataType 
+--         $ renameDataType 
          $ datatypeName (undefined :: t d f p)
       gToElement x
 

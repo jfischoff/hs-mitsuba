@@ -1,0 +1,3 @@
+[submodule "externals/text-xml-qq"]
+	path = externals/text-xml-qq
+	url = http://github.com/finnsson/text-xml-qq

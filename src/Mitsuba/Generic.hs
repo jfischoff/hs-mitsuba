@@ -33,3 +33,10 @@ instance c a => GFold (K1 i a) c d where
 gfold :: forall a c d p. (Generic a, GFold (Rep a) c d) 
       => p c -> (forall e. c e => e -> d) -> a -> d
 gfold p h x = genericFold p h $ from x
+
+-- I would like to generalize this to abitrary functions
+-- forall e. c e => e -> .. -> e -> d 
+-- foreach var either apply to all forwarded spots. case if it is e.
+-- 
+
+--class GGFold 
