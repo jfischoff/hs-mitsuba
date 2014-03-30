@@ -108,6 +108,7 @@ instance Default FilterType
 instance ToElement FilterType where
    toElement = defaultShowInstance
 
+{-
 data CachePolicy = Cache | DontCache
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Bounded, Enum)
    
@@ -115,16 +116,23 @@ instance Default CachePolicy
    
 instance ToElement CachePolicy where
    toElement = defaultShowInstance
+-}
+
+data WrapUV = WrapUV 
+  { wrapUVWrapModeU :: WrapMode
+  , wrapUVWrapModeV :: WrapMode
+  } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance Default WrapUV  
+instance ToElement WrapUV
 
 data Bitmap = Bitmap 
    { bitmapFilename      :: FilePath
-   , bitmapWrapMode      :: WrapMode
-   , bitmapWrapModeU     :: WrapMode
-   , bitmapWrapModeV     :: WrapMode
-   , bitmapGamma         :: Double
+   , bitmapWrapMode      :: Either WrapMode WrapUV
+   , bitmapGamma         :: Maybe Double
    , bitmapFilterType    :: FilterType
    , bitmapMaxAnisotropy :: Double
-   , bitmapCache         :: CachePolicy
+   , bitmapCache         :: Bool
    , bitmapUoffset       :: Double
    , bitmapVoffset       :: Double
    , bitmapUscale        :: Double
@@ -133,7 +141,21 @@ data Bitmap = Bitmap
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Bitmap
-instance ToElement Bitmap   
+instance ToElement Bitmap where
+  toElement Bitmap {..} = 
+    ((case bitmapWrapMode of
+         Left  x -> (.> ("wrapMode", x))
+         Right x -> (`appendChildren` x)) 
+    (tag "bitmap" .> ("filename", bitmapFilename)))
+    .?> ("gamma"        , bitmapGamma)
+    .>  ("filterType"   , bitmapFilterType   )
+    .>  ("maxAnisotropy", bitmapMaxAnisotropy)
+    .>  ("cache"        , bitmapCache        )
+    .>  ("uoffset"      , bitmapUoffset      )
+    .>  ("voffset"      , bitmapVoffset      )
+    .>  ("uscale"       , bitmapUscale       )
+    .>  ("vscale"       , bitmapVscale       )
+    .>  ("channel"      , bitmapChannel      )
 
 data Checkerboard = Checkerboard
    { checkerboardColor0  :: Spectrum
@@ -798,7 +820,7 @@ instance ToElement Irawan where
 
 data BSDF 
    = BSDFDiffuse                 Diffuse 
-   | BSDFRoughDiffuse            RoughDiffuse
+   | BSDFRoughdiffuse            RoughDiffuse
    | BSDFDielectric              Dielectric
    | BSDFThinDielectric          ThinDielectric
    | BSDFRoughDielectric         RoughDielectric

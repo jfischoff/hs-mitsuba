@@ -164,7 +164,7 @@ instance ToElement Spectrum where
       SUniform     x -> primitive "spectrum" x
       SInternal    x -> primitive "spectrum" x
       SRGB         x -> primitive "rgb"      x
-      SSRGB        x -> primitive "rgb"      x
+      SSRGB        x -> primitive "srgb"      x
       SFile        x -> tag "spectrum"  # ("file", x)
       SBlackbody   x -> tag "blackbody" 
                            # ("temperature", blackBodyTemperature x)

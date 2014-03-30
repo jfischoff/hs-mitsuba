@@ -684,24 +684,90 @@ case_heightfield_toXML
     </shape>
   |]
 
-{-
-_case_diffuse_0_toXML 
-  = () `assertElement` [xmlQQ|
+actualDiffuse0 
+  = BSDFDiffuse 
+  $ Diffuse 
+  $ CSpectrum
+  $ SSRGB
+  $ RGBLHex
+  $ Hex 0x6d 0x71 0x85
+
+
+case_diffuse_0_toXML 
+  = actualDiffuse0 `assertElement` [xmlQQ|
     <bsdf type="diffuse">
       <srgb name="reflectance" value="#6d7185"/>
     </bsdf>
   |]
 
-_case_diffuse_1_toXML 
-  = () `assertElement` [xmlQQ|
+actualDiffuse1 
+  = BSDFDiffuse 
+  $ Diffuse 
+  $ CTexture
+  $ TBitmap
+  $ Bitmap
+     { bitmapFilename      = "wood.jpg"
+     , bitmapWrapMode      = Left Repeat
+     , bitmapGamma         = Nothing
+     , bitmapFilterType    = Trilinear
+     , bitmapMaxAnisotropy = 0.0
+     , bitmapCache         = False
+     , bitmapUoffset       = 0.5
+     , bitmapVoffset       = 1.0
+     , bitmapUscale        = 1.5
+     , bitmapVscale        = 2.0
+     , bitmapChannel       = R
+     }
+
+case_diffuse_1_toXML 
+  = actualDiffuse1 `assertElement` [xmlQQ|
   <bsdf type="diffuse">
     <texture type="bitmap" name="reflectance">
       <string name="filename" value="wood.jpg"/>
+      <string name="wrapMode" value="repeat" />
+      <string name="filterType" value="trilinear" />
+      <float  name="maxAnisotropy" value="0.0" />
+      <bool   name="cache" value="false" />
+      <float  name="uoffset" value="0.5" />
+      <float  name="voffset" value="1.0" />  
+
+      <float name="uscale" value="1.5" />
+      <float name="vscale" value="2.0" />  
+
+      <string name="channel" value="r" />
     </texture> 
   </bsdf>
   |]
 
 --TODO rough diffuse
+
+actualRoughDiffuse 
+  = BSDFRoughdiffuse
+  $ RoughDiffuse 
+      ( CSpectrum 
+      $ SRGB
+      $ RGBLTriple
+      $ RGBTriple 1.0 0.5 0.0
+      )
+      ( CSpectrum 
+      $ SRGB
+      $ RGBLTriple
+      $ RGBTriple 0.1 0.05 0.0
+      )
+      True
+
+case_roughdiffuse_toXML 
+  = actualRoughDiffuse `assertElement` [xmlQQ|
+      <bsdf type="roughdiffuse">
+        <rgb name="reflectance" value="1.000, 0.500, 0.000" />
+        <rgb name="alpha"       value="0.100, 0.050, 0.000" />
+        <bool name="useFastApprox" value="true" />
+      </bsdf>
+  |]
+
+
+{-
+
 
 _case_dielectric_toXML 
   = () `assertElement` [xmlQQ|
