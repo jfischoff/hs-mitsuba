@@ -739,8 +739,6 @@ case_diffuse_1_toXML
   </bsdf>
   |]
 
---TODO rough diffuse
-
 actualRoughDiffuse 
   = BSDFRoughdiffuse
   $ RoughDiffuse 
