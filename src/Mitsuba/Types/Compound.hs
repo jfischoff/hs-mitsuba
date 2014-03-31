@@ -437,10 +437,10 @@ instance Default Dielectric
 instance ToElement Dielectric
 
 data ThinDielectric = ThinDielectric
-   { thinDielectricIntIOR               :: Refraction
-   , thinDielectricExtIOR               :: Refraction
-   , thinDielectricSpecularReflectance  :: Color
-   , thinDielectricSpecularTranmittance :: Color
+   { thinDielectricIntIOR                :: Refraction
+   , thinDielectricExtIOR                :: Refraction
+   , thinDielectricSpecularReflectance   :: Color
+   , thinDielectricSpecularTransmittance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default ThinDielectric
@@ -588,16 +588,41 @@ instance ToAttributeValue ConductorType where
 instance ToElement ConductorType where
    toElement = toElement . toAttributeValue
    
-data SmoothConductor = SmoothConductor 
-   { smoothConductorMaterial            :: ConductorType
-   , smoothConductorEta                 :: Spectrum
-   , smoothConductorK                   :: Spectrum
-   , smoothConductorExtEta              :: Refraction
-   , smoothConductorSpecularReflectance :: Color
+data ManualConductance = ManualConductance
+   { manualConductanceK   :: Spectrum
+   , manualConductanceEta :: Spectrum
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Default ManualConductance
+instance ToElement ManualConductance
+   
+data Conductance 
+  = CConductorType ConductorType
+  | CManualConductance ManualConductance
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance Default Conductance
+instance ToElement Conductance where
+  toElement = \case
+    CConductorType x -> tag "dummy" .> ("material", x)
+    CManualConductance x -> toElement x
+  
+data Conductor = Conductor 
+   { conductorConductance         :: Conductance
+   , conductorExtEta              :: Refraction
+   , conductorSpecularReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-instance ToElement SmoothConductor
-instance Default SmoothConductor
+
+instance ToElement Conductor where
+  toElement Conductor {..} 
+     = tag "conductor" 
+    `appendChildren` conductorConductance
+    .> ("extEta", conductorExtEta)
+    .> ("specularReflectance", conductorSpecularReflectance)
+  
+  
+instance Default Conductor
 
 --TODO make luminance
 -- Luminance
@@ -615,9 +640,7 @@ instance ToElement IndexOfRefraction where
 data RoughConductorRegular = RoughConductorRegular 
    { roughConductorRegularDistribution :: Distribution
    , roughConductorRegularAlpha        :: Luminance
-   , roughConductorRegularMaterial     :: ConductorType
-   , roughConductorRegularEta          :: Spectrum
-   , roughConductorRegularK            :: Spectrum
+   , roughConductorRegularConductance  :: Conductance
    , roughConductorRegularExtEta       :: IndexOfRefraction
    , roughConductorSpecularReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -628,9 +651,7 @@ instance ToElement RoughConductorRegular
 data RoughConductorAnisotropic = RoughConductorAnisotropic
    { roughConductorAnisotropicAlphaU              :: Luminance
    , roughConductorAnisotropicAlphaV              :: Luminance
-   , roughConductorAnisotropicMaterial            :: ConductorType
-   , roughConductorAnisotropicEta                 :: Spectrum
-   , roughConductorAnisotropicRegularK            :: Spectrum
+   , roughConductorAnisotropicConductance         :: Conductance
    , roughConductorAnisotropicRegularExtEta       :: IndexOfRefraction
    , roughConductorAnisotropicSpecularReflectance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -822,16 +843,16 @@ data BSDF
    = BSDFDiffuse                 Diffuse 
    | BSDFRoughdiffuse            RoughDiffuse
    | BSDFDielectric              Dielectric
-   | BSDFThinDielectric          ThinDielectric
-   | BSDFRoughDielectric         RoughDielectric
-   | BSDFSmoothConductor         SmoothConductor
-   | BSDFRoughConductor          RoughConductor
+   | BSDFThindielectric          ThinDielectric
+   | BSDFRoughdielectric         RoughDielectric
+   | BSDFConductor               Conductor
+   | BSDFRoughconductor          RoughConductor
    | BSDFPlastic                 Plastic
-   | BSDFRoughPlastic            RoughPlastic
-   | BSDFSmoothDielectricCoating SmoothDielectricCoating
-   | BSDFRoughDielectricCoating  RoughDielectricCoating
+   | BSDFRoughplastic            RoughPlastic
+   | BSDFSmoothdielectriccoating SmoothDielectricCoating
+   | BSDFRoughdielectriccoating  RoughDielectricCoating
    | BSDFBump                    Bump
-   | BSDFModifiedPhong           ModifiedPhong
+   | BSDFModifiedphong           ModifiedPhong
    | BSDFWard                    Ward
    | BSDFMixtureBSDF             MixtureBSDF
    | BSDFBlendBSDF               BlendBSDF

@@ -444,7 +444,7 @@ case_obj_0_toXML
 
 actualObj1 
   = obj "myShape.obj"
-  & bsdf .~ (BSDFRoughPlastic $ RoughPlastic 
+  & bsdf .~ (BSDFRoughplastic $ RoughPlastic 
     { roughPlasticDistribution        = Beckmann
     , roughPlasticAlpha               = UniformLuminance 1.0
     , roughPlasticIntIOR              = RKM $ Vacuum
@@ -460,7 +460,7 @@ actualObj1
 case_obj_1_toXML 
   = actualObj1 `assertElement` [xmlQQ|
   <shape type="obj">
-    <bsdf type="roughPlastic">
+    <bsdf type="roughplastic">
       <string name="intIOR" value="vacuum"/>
       <string name="distribution" value="beckmann"/>
       <string name="extIOR" value="water"/>
@@ -764,51 +764,146 @@ case_roughdiffuse_toXML
   |]
 
 
-{-
+actualDielectric 
+  = BSDFDielectric
+  $ Dielectric 
+      { dielectricIntIOR                = RKM Water
+      , dielectricExtIOR                = RKM Air
+      , dielectricSpecularReflectance   = CSpectrum $ SUniform 1.0
+      , dielectricSpecularTransmittance = CSpectrum $ SUniform 1.0
+      }
 
-
-_case_dielectric_toXML 
-  = () `assertElement` [xmlQQ|
+case_dielectric_toXML 
+  = actualDielectric `assertElement` [xmlQQ|
     <bsdf type="dielectric">
       <string name="intIOR" value="water"/>
       <string name="extIOR" value="air"/> 
+      <spectrum name="specularReflectance" value="1.0" />
+      <spectrum name="specularTransmittance" value="1.0" />
     </bsdf>
   |]
 
--- TODO thin dielectric
 
-_case_roughdielectric_0_toXML 
-  = () `assertElement` [xmlQQ|
+-- TODO thin dielectric
+actualThinDielectric 
+  = BSDFThindielectric
+  $ ThinDielectric
+    { thinDielectricIntIOR                = RKM Water
+    , thinDielectricExtIOR                = RKM Air
+    , thinDielectricSpecularReflectance   = CSpectrum $ SUniform 1.0
+    , thinDielectricSpecularTransmittance = CSpectrum $ SUniform 1.0
+    }
+
+case_thindielectric_toXML 
+    = actualThinDielectric `assertElement` [xmlQQ|
+      <bsdf type="thindielectric">
+        <string name="intIOR" value="water"/>
+        <string name="extIOR" value="air"/> 
+        <spectrum name="specularReflectance" value="1.0" />
+        <spectrum name="specularTransmittance" value="1.0" />
+      </bsdf>
+    |]
+
+
+actualRoughDielectric0 
+  = BSDFRoughdielectric
+  $ RDRoughDielectricRegular
+  $ RoughDielectricRegular 
+      { roughDielectricRegularDistribution          = GGX
+      , roughDielectricRegularAlpha                 = UniformLuminance 0.304
+      , roughDielectricRegularIntIOR                = RKM Bk7
+      , roughDielectricRegularExtIOR                = RKM Air
+      , roughDielectricRegularSpecularReflectance   = CSpectrum $ SUniform 1.0
+      , roughDielectricRegularSpecularTransmittance = CSpectrum $ SUniform 1.0
+      }
+
+case_roughdielectric_0_toXML 
+  = actualRoughDielectric0 `assertElement` [xmlQQ|
   <bsdf type="roughdielectric">
     <string name="distribution" value="ggx"/>
     <float name="alpha" value="0.304"/> 
-    <string name="intIOR" value="bk7"/> 
     <string name="extIOR" value="air"/>
+    <string name="intIOR" value="bk7"/> 
+    <spectrum name="specularReflectance" value="1.0" />
+    <spectrum name="specularTransmittance" value="1.0" />
   </bsdf>  
   |]
 
-_case_roughdielectric_1_toXML 
-  = () `assertElement` [xmlQQ|
+actualRoughDielectric1 
+  = BSDFRoughdielectric
+  $ RDRoughDielectricRegular
+  $ RoughDielectricRegular 
+      { roughDielectricRegularDistribution          = Beckmann
+      , roughDielectricRegularAlpha                 
+          = TextureLuminance 
+          $ TBitmap
+          $ Bitmap
+             { bitmapFilename      = "roughness.exr"
+             , bitmapWrapMode      = Left Repeat
+             , bitmapGamma         = Nothing
+             , bitmapFilterType    = Trilinear
+             , bitmapMaxAnisotropy = 0.0
+             , bitmapCache         = False
+             , bitmapUoffset       = 0.5
+             , bitmapVoffset       = 1.0
+             , bitmapUscale        = 1.5
+             , bitmapVscale        = 2.0
+             , bitmapChannel       = R
+             }
+                  
+      , roughDielectricRegularIntIOR                = IOR 1.5046
+      , roughDielectricRegularExtIOR                = IOR 1.0
+      , roughDielectricRegularSpecularReflectance   = CSpectrum $ SUniform 1.0
+      , roughDielectricRegularSpecularTransmittance = CSpectrum $ SUniform 1.0
+      }
+
+case_roughdielectric_1_toXML 
+  = actualRoughDielectric1 `assertElement` [xmlQQ|
   <bsdf type="roughdielectric">
     <string name="distribution" value="beckmann"/> 
     <float name="intIOR" value="1.5046"/>
     <float name="extIOR" value="1.0"/>
     
+    <spectrum name="specularReflectance" value="1.0" />
+    <spectrum name="specularTransmittance" value="1.0" />
+    
     <texture name="alpha" type="bitmap">
       <string name="filename" value="roughness.exr"/>
+      
+      <string name="wrapMode" value="repeat" />
+      <string name="filterType" value="trilinear" />
+      <float  name="maxAnisotropy" value="0.0" />
+      <bool   name="cache" value="false" />
+      <float  name="uoffset" value="0.5" />
+      <float  name="voffset" value="1.0" />  
+
+      <float name="uscale" value="1.5" />
+      <float name="vscale" value="2.0" />  
+
+      <string name="channel" value="r" />
     </texture> 
   </bsdf>
   
   |]
 
-_case_conductor_0_toXML 
-  = () `assertElement` [xmlQQ|
+actualConductor 
+  = BSDFConductor
+  $ Conductor
+      { conductorConductance         = CConductorType Gold
+      , conductorExtEta              = RKM Bk7
+      , conductorSpecularReflectance = CSpectrum $ SUniform 1.0
+      }
+
+case_conductor_0_toXML 
+  = actualConductor `assertElement` [xmlQQ|
     <bsdf type="conductor">
       <string name="material" value="Au"/>
+      <string name="extEta" value="bk7"/> 
+      <spectrum name="specularReflectance" value="1.0" />
     </bsdf>
   |]
 
-
+{-
 _case_conductor_1_toXML 
   = () `assertElement` [xmlQQ|
   <bsdf type="conductor">
