@@ -471,39 +471,59 @@ instance Default Luminance
 instance ToElement Luminance where
    toElement = forwardToElement
 
-data RoughDielectricRegular = RoughDielectricRegular
-   { roughDielectricRegularDistribution          :: Distribution
-   , roughDielectricRegularAlpha                 :: Luminance
-   , roughDielectricRegularIntIOR                :: Refraction
-   , roughDielectricRegularExtIOR                :: Refraction
-   , roughDielectricRegularSpecularReflectance   :: Color
-   , roughDielectricRegularSpecularTransmittance :: Color
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Default RoughDielectricRegular
-instance ToElement RoughDielectricRegular
-   
-data RoughDielectricAnistrophic = RoughDielectricAnistrophic
-   { roughDielectricAnistrophicDistribution          :: Distribution
-   , roughDielectricAnistrophicAlphaU                :: Luminance
-   , roughDielectricAnistrophicAlphaV                :: Luminance
-   , roughDielectricAnistrophicIntIOR                :: Refraction
-   , roughDielectricAnistrophicExtIOR                :: Refraction
-   , roughDielectricAnistrophicSpecularReflectance   :: Color
-   , roughDielectricAnistrophicSpecularTransmittance :: Color
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Default RoughDielectricAnistrophic
-instance ToElement RoughDielectricAnistrophic   
-   
-data RoughDielectric 
-   = RDRoughDielectricRegular      RoughDielectricRegular
-   | RDRoughDielectricAnisotrophic RoughDielectricAnistrophic
+data AnistrophicAlpha = AnistrophicAlpha
+  { anistrophicAlphaU :: Luminance
+  , anistrophicAlphaV :: Luminance
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+  
+instance ToElement AnistrophicAlpha where
+  toElement AnistrophicAlpha {..} 
+    =  tag "dummy"
+    .> ("alphaU", anistrophicAlphaU)
+    .> ("alphaV", anistrophicAlphaV)
+  
+instance Default AnistrophicAlpha
+
+data UniformAlpha = UniformAlpha 
+  { uniformAlphaDistribution :: Distribution
+  , uniformAlphaAlpha        :: Luminance
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+  
+instance ToElement UniformAlpha  
+instance Default UniformAlpha
+
+data AlphaDistribution 
+  = ADAnistrophicAlpha AnistrophicAlpha
+  | ADUniformAlpha     UniformAlpha 
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance ToElement AlphaDistribution where
+  toElement = \case 
+    ADAnistrophicAlpha x 
+      ->  tag "dummy" 
+      .>  ("distribution", toElement "as")
+      ..> x
+    ADUniformAlpha x -> toElement x
+    
+instance Default AlphaDistribution
+   
+data RoughDielectric = RoughDielectric 
+   { roughDielectricAlpha                 :: AlphaDistribution
+   , roughDielectricIntIOR                :: Refraction
+   , roughDielectricExtIOR                :: Refraction
+   , roughDielectricSpecularReflectance   :: Color
+   , roughDielectricSpecularTransmittance :: Color
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default RoughDielectric   
 instance ToElement RoughDielectric where
-   toElement = forwardToElement
+   toElement RoughDielectric {..} 
+       =  tag "roughDielectric" 
+      ..> roughDielectricAlpha
+      .>  ("intIOR"               , roughDielectricIntIOR)
+      .>  ("extIOR"               , roughDielectricExtIOR)
+      .>  ("specularReflectance"  , roughDielectricSpecularReflectance)
+      .>  ("specularTransmittance", roughDielectricSpecularTransmittance)
 
 data ConductorType
    = AmorphousCarbon
@@ -637,36 +657,22 @@ instance Default IndexOfRefraction
 instance ToElement IndexOfRefraction where
    toElement = forwardToElement
 
-data RoughConductorRegular = RoughConductorRegular 
-   { roughConductorRegularDistribution :: Distribution
-   , roughConductorRegularAlpha        :: Luminance
-   , roughConductorRegularConductance  :: Conductance
-   , roughConductorRegularExtEta       :: IndexOfRefraction
-   , roughConductorSpecularReflectance :: Color
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Default RoughConductorRegular
-instance ToElement RoughConductorRegular
-   
-data RoughConductorAnisotropic = RoughConductorAnisotropic
-   { roughConductorAnisotropicAlphaU              :: Luminance
-   , roughConductorAnisotropicAlphaV              :: Luminance
-   , roughConductorAnisotropicConductance         :: Conductance
-   , roughConductorAnisotropicRegularExtEta       :: IndexOfRefraction
-   , roughConductorAnisotropicSpecularReflectance :: Color
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Default RoughConductorAnisotropic
-instance ToElement RoughConductorAnisotropic
-
-data RoughConductor 
-   = RCRegular     RoughConductorRegular
-   | RCAnisotropic RoughConductorAnisotropic
-   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+data RoughConductor = RoughConductor 
+  { roughConductorAlpha               :: AlphaDistribution
+  , roughConductorConductance         :: Conductance
+  , roughConductorExtEta              :: IndexOfRefraction
+  , roughConductorSpecularReflectance :: Color
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default RoughConductor
 instance ToElement RoughConductor where
-   toElement = forwardToElement
+   toElement RoughConductor {..}
+     =   tag "roughconductor" 
+     ..> roughConductorAlpha
+     ..> roughConductorConductance
+     .>  ("extEta", roughConductorExtEta)
+     .>  ("specularReflectance", roughConductorSpecularReflectance)
+   
 
 data Plastic = Plastic
    { plasticIntIOR              :: Refraction

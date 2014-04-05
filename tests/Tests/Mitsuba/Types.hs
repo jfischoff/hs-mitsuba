@@ -22,6 +22,7 @@ import qualified Text.XML.Light.Types as XML
 import qualified Text.XML.Light.Output as XML
 import Data.Maybe
 import Control.Lens
+import Data.Default.Generics
 default (Text, Integer, Double)
 
 assertElement x y = assertEqual 
@@ -807,14 +808,14 @@ case_thindielectric_toXML
 
 actualRoughDielectric0 
   = BSDFRoughdielectric
-  $ RDRoughDielectricRegular
-  $ RoughDielectricRegular 
-      { roughDielectricRegularDistribution          = GGX
-      , roughDielectricRegularAlpha                 = UniformLuminance 0.304
-      , roughDielectricRegularIntIOR                = RKM Bk7
-      , roughDielectricRegularExtIOR                = RKM Air
-      , roughDielectricRegularSpecularReflectance   = CSpectrum $ SUniform 1.0
-      , roughDielectricRegularSpecularTransmittance = CSpectrum $ SUniform 1.0
+  $ RoughDielectric 
+      { roughDielectricAlpha                 = ADUniformAlpha
+                                             $ UniformAlpha GGX
+                                             $ UniformLuminance 0.304
+      , roughDielectricIntIOR                = RKM Bk7
+      , roughDielectricExtIOR                = RKM Air
+      , roughDielectricSpecularReflectance   = CSpectrum $ SUniform 1.0
+      , roughDielectricSpecularTransmittance = CSpectrum $ SUniform 1.0
       }
 
 case_roughdielectric_0_toXML 
@@ -831,11 +832,11 @@ case_roughdielectric_0_toXML
 
 actualRoughDielectric1 
   = BSDFRoughdielectric
-  $ RDRoughDielectricRegular
-  $ RoughDielectricRegular 
-      { roughDielectricRegularDistribution          = Beckmann
-      , roughDielectricRegularAlpha                 
-          = TextureLuminance 
+  $ RoughDielectric 
+      { roughDielectricAlpha                 
+          = ADUniformAlpha 
+          $ UniformAlpha Beckmann
+          $ TextureLuminance 
           $ TBitmap
           $ Bitmap
              { bitmapFilename      = "roughness.exr"
@@ -851,10 +852,10 @@ actualRoughDielectric1
              , bitmapChannel       = R
              }
                   
-      , roughDielectricRegularIntIOR                = IOR 1.5046
-      , roughDielectricRegularExtIOR                = IOR 1.0
-      , roughDielectricRegularSpecularReflectance   = CSpectrum $ SUniform 1.0
-      , roughDielectricRegularSpecularTransmittance = CSpectrum $ SUniform 1.0
+      , roughDielectricIntIOR                = IOR 1.5046
+      , roughDielectricExtIOR                = IOR 1.0
+      , roughDielectricSpecularReflectance   = CSpectrum $ SUniform 1.0
+      , roughDielectricSpecularTransmittance = CSpectrum $ SUniform 1.0
       }
 
 case_roughdielectric_1_toXML 
@@ -903,25 +904,60 @@ case_conductor_0_toXML
     </bsdf>
   |]
 
-{-
-_case_conductor_1_toXML 
-  = () `assertElement` [xmlQQ|
+
+actualConductor1 
+  = BSDFConductor
+  $ Conductor
+      { conductorConductance         
+          = CManualConductance 
+          $ ManualConductance
+              { manualConductanceEta   = SFile "conductorIOR.eta.spd"
+              , manualConductanceK = SFile "conductorIOR.k.spd"
+              }
+                
+      , conductorExtEta              = RKM Bk7
+      , conductorSpecularReflectance = CSpectrum $ SUniform 1.0
+      }
+
+case_conductor_1_toXML 
+  = actualConductor1 `assertElement` [xmlQQ|
   <bsdf type="conductor">
     <spectrum name="eta" filename="conductorIOR.eta.spd"/> 
     <spectrum name="k" filename="conductorIOR.k.spd"/>
-  </bsdf>
-  |]
-  
-_case_roughconductor_toXML 
-  = () `assertElement` [xmlQQ|
-  <bsdf type="roughconductor">
-    <string name="material" value="Al"/> 
-    <string name="distribution" value="as"/> 
-    <float name="alphaU" value="0.05"/> 
-    <float name="alphaV" value="0.3"/>
+    <string name="extEta" value="bk7"/> 
+    <spectrum name="specularReflectance" value="1.0" />
   </bsdf>
   |]
 
+
+actualRoughConductor 
+  = BSDFRoughconductor
+  $ RoughConductor
+      { roughConductorAlpha        
+          = ADAnistrophicAlpha
+          $ AnistrophicAlpha
+            { anistrophicAlphaU = UniformLuminance 0.05
+            , anistrophicAlphaV = UniformLuminance 0.3
+            }
+                                   
+      , roughConductorConductance  = CConductorType Aluminium
+      , roughConductorExtEta       = def
+      , roughConductorSpecularReflectance = def
+      }
+
+case_roughconductor_toXML 
+  = actualRoughConductor `assertElement` [xmlQQ|
+  <bsdf type="roughconductor">
+    <string name="material" value="Al"/> 
+    <string name="distribution" value="as"/> 
+    <float name="alphaU" value="5.0e-2"/> 
+    <float name="alphaV" value="0.3"/>
+    <string name="extEta" value="vacuum" />
+    <texture name="specularReflectance" />
+  </bsdf>
+  |]
+
+{-
 _case_plastic_toXML 
   = () `assertElement` [xmlQQ|
   <bsdf type="plastic">

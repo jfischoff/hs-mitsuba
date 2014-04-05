@@ -188,6 +188,11 @@ addNestedShown = (.>)
 (.>) :: ToElement a => Element -> (Text, a) -> Element
 x .> (n, e) = addNested x n (toElement e) Shown
 
+infixl 6 ..>
+
+(..>) :: ToElement a => Element -> a -> Element
+x ..> e = appendChildren x e
+
 (.?>) :: ToElement a => Element -> (Text, Maybe a) -> Element
 x .?> (n, Just e) = addNested x n (toElement e) Shown
 x .?> _ = x

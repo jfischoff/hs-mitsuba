@@ -76,5 +76,6 @@ test-suite tasty
                 , fixed-vector >= 0.6.3.1
                 , data-default-generics >= 0.3
                 , modulespection >= 0.1.0.7
+                , data-default-generics >= 0.3
                 , ghc
    
