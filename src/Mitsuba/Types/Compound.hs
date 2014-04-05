@@ -686,8 +686,7 @@ instance Default Plastic
 instance ToElement Plastic
 
 data RoughPlastic = RoughPlastic
-   { roughPlasticDistribution        :: Distribution
-   , roughPlasticAlpha               :: Luminance
+   { roughPlasticAlpha               :: AlphaDistribution
    , roughPlasticIntIOR              :: Refraction
    , roughPlasticExtIOR              :: Refraction
    , roughPlasticSpecularReflectance :: Color
@@ -712,8 +711,7 @@ instance ToElement SmoothDielectricCoating
    
 -- TODO make a Coating a = Coating { coatingData :: a, child :: BSDF }   
 data RoughDielectricCoating = RoughDielectricCoating
-   { roughDielectricCoatingDistribution        :: Distribution
-   , roughDielectricCoatingAlpha               :: Luminance
+   { roughDielectricCoatingAlpha               :: AlphaDistribution
    , roughDielectricCoatingIntIOR              :: IndexOfRefraction
    , roughDielectricCoatingExtIOR              :: IndexOfRefraction
    , roughDielectricCoatingThickness           :: Double

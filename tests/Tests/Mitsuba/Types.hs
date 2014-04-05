@@ -446,8 +446,10 @@ case_obj_0_toXML
 actualObj1 
   = obj "myShape.obj"
   & bsdf .~ (BSDFRoughplastic $ RoughPlastic 
-    { roughPlasticDistribution        = Beckmann
-    , roughPlasticAlpha               = UniformLuminance 1.0
+    { roughPlasticAlpha               
+      = ADUniformAlpha 
+      $ UniformAlpha Beckmann 
+      $ UniformLuminance 1.0
     , roughPlasticIntIOR              = RKM $ Vacuum
     , roughPlasticExtIOR              = RKM $ Water
     , roughPlasticSpecularReflectance = CSpectrum $ SUniform 2
@@ -957,17 +959,45 @@ case_roughconductor_toXML
   </bsdf>
   |]
 
-{-
-_case_plastic_toXML 
-  = () `assertElement` [xmlQQ|
+actualPlastic 
+  = BSDFPlastic
+  $ Plastic
+     { plasticIntIOR              = IOR 1.9
+     , plasticExtIOR              = IOR 1.0
+     , plasticSpecularReflectance = def
+     , plasticDiffuseReflectance  
+         = CSpectrum 
+         $ SSRGB
+         $ RGBLHex
+         $ Hex 0x18 0x45 0x5c
+     , plasticNonlinear           = def
+     }
+
+case_plastic_toXML 
+  = actualPlastic `assertElement` [xmlQQ|
   <bsdf type="plastic">
     <srgb name="diffuseReflectance" value="#18455c"/> 
     <float name="intIOR" value="1.9"/>
+    <float name="extIOR" value="1.0"/>
+    <bool name="nonlinear" value="false" />
+    <texture name="specularReflectance" />
   </bsdf>
   |]
 
-_case_roughplastic_toXML 
-  = () `assertElement` [xmlQQ|
+actualRoughPlastic :: BSDF
+actualRoughPlastic 
+  = BSDFRoughplastic
+  $ RoughPlastic 
+      { roughPlasticAlpha               = def
+      , roughPlasticIntIOR              = def
+      , roughPlasticExtIOR              = def
+      , roughPlasticSpecularReflectance = def
+      , roughPlasticDiffuseReflectance  = def
+      , roughPlasticNonlinear           = def
+      }
+
+case_roughplastic_toXML 
+  = actualRoughPlastic `assertElement` [xmlQQ|
   <bsdf type="roughplastic">
     <string name="distribution" value="beckmann"/>
     <float name="intIOR" value="1.61"/>
@@ -981,7 +1011,7 @@ _case_roughplastic_toXML
   </bsdf>
   |]
 
-
+{-
 _case_coating_toXML 
   = () `assertElement` [xmlQQ|
     <bsdf type="coating">
