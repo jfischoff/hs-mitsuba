@@ -190,8 +190,8 @@ instance ToElement Color where
    toElement = forwardToElement
 
 data ScaleTexture = ScaleTexture
-   { scaleTexture :: Color
-   , scaleValue   :: Double
+   { scaleTextureTexture :: Color
+   , scaleTextureScale   :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default ScaleTexture
@@ -695,7 +695,15 @@ data RoughPlastic = RoughPlastic
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default RoughPlastic
-instance ToElement RoughPlastic
+instance ToElement RoughPlastic where
+  toElement RoughPlastic {..} 
+    =   tag "roughplastic"
+    ..> roughPlasticAlpha
+    .>  ("intIOR"             , roughPlasticIntIOR)
+    .>  ("extIOR"             , roughPlasticExtIOR)
+    .>  ("specularReflectance", roughPlasticSpecularReflectance)
+    .>  ("diffuseReflectance" , roughPlasticDiffuseReflectance)
+    .>  ("nonlinear"          , roughPlasticNonlinear)
 
 data SmoothDielectricCoating = SmoothDielectricCoating
    { smoothDielectricCoatingIntIOR             :: Refraction

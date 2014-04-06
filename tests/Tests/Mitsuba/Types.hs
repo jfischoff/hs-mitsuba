@@ -988,11 +988,34 @@ actualRoughPlastic :: BSDF
 actualRoughPlastic 
   = BSDFRoughplastic
   $ RoughPlastic 
-      { roughPlasticAlpha               = def
-      , roughPlasticIntIOR              = def
-      , roughPlasticExtIOR              = def
+      { roughPlasticAlpha               
+          = ADUniformAlpha 
+          $ UniformAlpha Beckmann 
+          $ TextureLuminance 
+          $ TScale 
+          $ ScaleTexture 
+              ( CTexture 
+              $ TBitmap
+              $ Bitmap
+                 { bitmapFilename      = "bump.png"
+                 , bitmapWrapMode      = Left Repeat
+                 , bitmapGamma         = Nothing
+                 , bitmapFilterType    = Trilinear
+                 , bitmapMaxAnisotropy = 0.0
+                 , bitmapCache         = False
+                 , bitmapUoffset       = 0.5
+                 , bitmapVoffset       = 1.0
+                 , bitmapUscale        = 1.5
+                 , bitmapVscale        = 2.0
+                 , bitmapChannel       = R
+                 }
+              )
+              0.6
+             
+      , roughPlasticIntIOR              = IOR 1.61
+      , roughPlasticExtIOR              = IOR 1.0
       , roughPlasticSpecularReflectance = def
-      , roughPlasticDiffuseReflectance  = def
+      , roughPlasticDiffuseReflectance  = CSpectrum $ SUniform 0
       , roughPlasticNonlinear           = def
       }
 
@@ -1001,19 +1024,33 @@ case_roughplastic_toXML
   <bsdf type="roughplastic">
     <string name="distribution" value="beckmann"/>
     <float name="intIOR" value="1.61"/>
-    <spectrum name="diffuseReflectance" value="0"/>
+    <float name="extIOR" value="1.0"/>
+    <texture name="specularReflectance"/>
+    <spectrum name="diffuseReflectance" value="0.0"/>
     <texture type="scale" name="alpha">
-      <texture name="alpha" type="bitmap">
+      <texture name="texture" type="bitmap">
         <string name="filename" value="bump.png"/>
+        <string name="wrapMode" value="repeat" />
+        <string name="filterType" value="trilinear" />
+        <float  name="maxAnisotropy" value="0.0" />
+        <bool   name="cache" value="false" />
+        <float  name="uoffset" value="0.5" />
+        <float  name="voffset" value="1.0" />  
+        <float name="uscale" value="1.5" />
+        <float name="vscale" value="2.0" />  
+        <string name="channel" value="r" />
       </texture>
       <float name="scale" value="0.6"/> 
     </texture>
+    <bool name="nonlinear" value="false" />
   </bsdf>
   |]
 
-{-
-_case_coating_toXML 
-  = () `assertElement` [xmlQQ|
+actualCoating :: BSDF
+actualCoating = def
+
+case_coating_toXML 
+  = actualCoating `assertElement` [xmlQQ|
     <bsdf type="coating">
       <float name="intIOR" value="1.7"/>
       <bsdf type="roughconductor">
@@ -1023,6 +1060,7 @@ _case_coating_toXML
     </bsdf>  
   |]
 
+{-
 _case_bump_toXML 
   = () `assertElement` [xmlQQ|
   <bsdf type="bump">

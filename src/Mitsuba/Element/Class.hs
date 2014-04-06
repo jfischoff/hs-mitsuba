@@ -37,8 +37,11 @@ import Mitsuba.Generic
 import Data.Char
 import Control.Monad.State
 import Control.Arrow
+import Debug.Trace
 import qualified Text.XML.Light.Types as XML
 default (Text, Integer, Double)
+
+traceIt x = trace (show x) x
 
 class ToElement a where
    toElement :: a -> Element
@@ -255,18 +258,20 @@ toXML' maybeName Element {..} =
       [] -> cta elementTag attrs
       xs -> tas elementTag attrs children
 
-lowerFirst = (\([x], xs) -> toLower x : xs) . splitAt 1
+lowerFirst dt xs = case splitAt 1 xs of 
+    ([x], xs) -> toLower x : xs
+    as -> error $ "lowerFirst " ++ show as ++ " " ++ show dt
 
 renameConstructor :: String -> String -> String
 renameConstructor dataType 
-   =  lowerFirst . drop capitalCount where
+   =  lowerFirst dataType . drop capitalCount where
        capitalCount = length $ filter isUpper dataType
-
+       
 renameDataType :: String -> String
 renameDataType = map toLower
 
 renameSelector :: String -> String -> String
-renameSelector dataTypeName = lowerFirst . drop (length dataTypeName)
+renameSelector dataTypeName = lowerFirst dataTypeName . drop (length dataTypeName)
 
 -- This needs to be state
 data GToElementLog = GToElementLog 
