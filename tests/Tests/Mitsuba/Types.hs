@@ -501,15 +501,15 @@ case_obj_2_toXML
     <bsdf name="Glass" type="dielectric">
       <float name="intIOR" value="1.5"/> 
       <float name="extIOR" value="1.5"/>
-      <texture name="specularReflectance"/>
-      <texture name="specularTransmittance"/>
+      <texture name="specularReflectance" type="vertexcolors" />
+      <texture name="specularTransmittance" type="vertexcolors" />
     </bsdf>
     
     <bsdf name="Water" type="dielectric">
       <float name="intIOR" value="1.333"/>
       <float name="extIOR" value="1.333"/>
-      <texture name="specularReflectance"/>
-      <texture name="specularTransmittance"/>
+      <texture name="specularReflectance" type="vertexcolors" />
+      <texture name="specularTransmittance" type="vertexcolors" />
     </bsdf> 
     
     <bool name="flipNormals" value="false"/>
@@ -955,7 +955,7 @@ case_roughconductor_toXML
     <float name="alphaU" value="5.0e-2"/> 
     <float name="alphaV" value="0.3"/>
     <string name="extEta" value="vacuum" />
-    <texture name="specularReflectance" />
+    <texture name="specularReflectance" type="vertexcolors" />
   </bsdf>
   |]
 
@@ -980,7 +980,7 @@ case_plastic_toXML
     <float name="intIOR" value="1.9"/>
     <float name="extIOR" value="1.0"/>
     <bool name="nonlinear" value="false" />
-    <texture name="specularReflectance" />
+    <texture name="specularReflectance" type="vertexcolors" />
   </bsdf>
   |]
 
@@ -1025,10 +1025,10 @@ case_roughplastic_toXML
     <string name="distribution" value="beckmann"/>
     <float name="intIOR" value="1.61"/>
     <float name="extIOR" value="1.0"/>
-    <texture name="specularReflectance"/>
+    <texture name="specularReflectance" type="vertexcolors" />
     <spectrum name="diffuseReflectance" value="0.0"/>
     <texture type="scale" name="alpha">
-      <texture name="texture" type="bitmap">
+      <texture type="bitmap">
         <string name="filename" value="bump.png"/>
         <string name="wrapMode" value="repeat" />
         <string name="filterType" value="trilinear" />
@@ -1078,7 +1078,7 @@ case_coating_toXML
         <string name="material" value="Cu"/>
         <float name="alpha" value="0.1"/>
         <string name="extEta" value="vacuum"/>
-        <texture name="specularReflectance"/>
+        <texture name="specularReflectance" type="vertexcolors" />
       </bsdf>
       
       <spectrum name="specularReflection" value="1.0"/>
@@ -1282,34 +1282,153 @@ case_irawan_toXML
       </bsdf>
   |]
 
-{-
+actualCheckerboard 
+  = TCheckerboard
+  $ Checkerboard
+      { checkerboardColor0  = SUniform 0.0
+      , checkerboardColor1  = SUniform 0.5
+      , checkerboardUoffset = 1.0
+      , checkerboardVoffset = 2.0
+      , checkerboardUscale  = 3.0
+      , checkerboardVscale  = 4.0
+      }
+      
+      
+    
+case_checkerboard_toXML 
+  = actualCheckerboard `assertElement` [xmlQQ|  
+      <texture type="checkerboard">
+        <float name="uscale" value="3.0"/>
+        <float name="voffset" value="2.0"/>
+        <spectrum name="color1" value="0.5"/>
+        <spectrum name="color0" value="0.0"/>
+        <float name="uoffset" value="1.0"/>
+        <float name="vscale" value="4.0"/>
+      </texture>
+  |]
 
--- TODO  checkerboard
 -- TODO gridtexture
 
-_case_scale_toXML 
-  = () `assertElement` [xmlQQ|
+actualGridtexture 
+  = TGridtexture
+  $ GridTexture
+     { gridTextureColor0    = SUniform 0.0
+     , gridTextureColor1    = SUniform 0.5
+     , gridTextrueLineWidth = 1.0
+     , gridTextureUScale    = 2.0
+     , gridTextureVScale    = 3.0
+     , gridTextureUOffset   = 4.0
+     , gridTextureVOffset   = 5.0
+     }
+
+case_gridtexture_toXML 
+  = actualGridtexture `assertElement` [xmlQQ|
+    <texture type="gridtexture">
+      <float name="uScale" value="2.0" />
+      <float name="lineWidth" value="1.0" />
+      <float name="vOffset" value="5.0" />
+      <spectrum name="color1" value="0.5" />
+      <spectrum name="color0" value="0.0" />
+      <float name="uOffset" value="4.0" />
+      <float name="vScale" value="3.0" />
+    </texture>
+  |]
+
+actualScale 
+  = TScale
+  $ ScaleTexture (CTexture actualGridtexture) 0.5
+
+case_scale_toXML 
+  = actualScale `assertElement` [xmlQQ|
   <texture type="scale">
     <float name="scale" value="0.5"/>
-    <texture type="bitmap">
-      <string name="filename" value="wood.jpg"/>
+    <texture type="gridtexture">
+      <float name="uScale" value="2.0" />
+      <float name="lineWidth" value="1.0" />
+      <float name="vOffset" value="5.0" />
+      <spectrum name="color1" value="0.5" />
+      <spectrum name="color0" value="0.0" />
+      <float name="uOffset" value="4.0" />
+      <float name="vScale" value="3.0" />
     </texture>
   </texture>
   |]
   
-_case_vertexcolors_toXML 
-  = () `assertElement` [xmlQQ|
-  <shape type="ply">
-    <string name="filename" value="mesh.ply"/>
-    <bsdf type="diffuse">
-      <texture type="vertexcolors" name="reflectance"/>
-    </bsdf>
-  </shape>
+actualVertexColors = TVertexcolors 
+  
+case_vertexcolors_toXML 
+  = actualVertexColors `assertElement` [xmlQQ|
+      <texture type="vertexcolors"/>
   |]
 
--- TODO wireframe
+actualWireframe 
+  = TWireframe
+  $ Wireframe
+     { wireframeInteriorColor = SUniform 0.0
+     , wireframeEdgeColor     = SUniform 0.5
+     , wireframeLineWidth     = 1.0
+     , wireframeStepWidth     = 2.0
+     }
 
--- TODO curvature
+case_wireframe_toXML 
+  = actualWireframe `assertElement` [xmlQQ|
+      <texture type="wireframe">
+        <spectrum name="interiorColor" value="0.0" />
+        <spectrum name="edgeColor" value="0.5" />
+        <float name="lineWidth" value="1.0" />
+        <float name="stepWidth" value="2.0" />        
+      </texture>
+  |]
+
+actualBitmap 
+  = TBitmap
+  $ Bitmap
+      { bitmapFilename      = "bitmap.bmp"
+      , bitmapWrapMode      = Left Repeat
+      , bitmapGamma         = Just 1.0
+      , bitmapFilterType    = EWA
+      , bitmapMaxAnisotropy = 2.0
+      , bitmapCache         = True
+      , bitmapUoffset       = 3.0
+      , bitmapVoffset       = 4.0
+      , bitmapUscale        = 5.0
+      , bitmapVscale        = 6.0
+      , bitmapChannel       = R 
+      }
+
+case_bitmap_toXML 
+  = actualBitmap `assertElement` [xmlQQ|
+        <texture type="bitmap">
+          <float name="gamma" value="1.0"/>
+          <float name="uscale" value="5.0"/>
+          <string name="filterType" value="ewa"/>
+          <string name="channel" value="r"/>
+          <float name="voffset" value="4.0"/>
+          <float name="maxAnisotropy" value="2.0"/>
+          <bool name="cache" value="true"/>
+          <string name="wrapMode" value="repeat"/>
+          <float name="uoffset" value="3.0"/>
+          <float name="vscale" value="6.0"/>
+          <string name="filename" value="bitmap.bmp"/>
+        </texture>  
+  |]
+
+actualCurvature 
+  = TCurvature
+  $ Curvature
+      { curvatureCurvature = Mean
+      , curvatureScale     = 1.0
+      }
+
+case_curvature_toXML 
+  = actualCurvature `assertElement` [xmlQQ|
+      <texture type="curvature">
+        <string name="curvature" value="mean"/>
+        <float name="scale" value="1.0"/>
+      </texture>
+  |]
+
+{-
 
 _case_dipole_toXML 
   = () `assertElement` [xmlQQ|

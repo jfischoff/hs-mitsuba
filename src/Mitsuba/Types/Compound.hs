@@ -196,7 +196,11 @@ data ScaleTexture = ScaleTexture
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default ScaleTexture
-instance ToElement ScaleTexture
+instance ToElement ScaleTexture where
+  toElement ScaleTexture {..} 
+    = tag "dummy" 
+    .>  ("scale", scaleTextureScale)
+    .!> ("texture", scaleTextureTexture)
 
 data Wireframe = Wireframe
    { wireframeInteriorColor :: Spectrum
@@ -226,15 +230,30 @@ instance ToElement Curvature
 data Texture 
    = TBitmap       Bitmap
    | TCheckerboard Checkerboard
-   | TGridTexture  GridTexture
+   | TGridtexture  GridTexture
    | TScale        ScaleTexture
-   | TVertexColor  
+   | TVertexcolors 
    | TWireframe    Wireframe
    | TCurvature    Curvature
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Texture
-instance ToElement Texture 
+instance ToElement Texture where
+  toElement e = case e of
+    TBitmap       x -> (tag "texture" # ("type", "bitmap"))
+                    `appendChildren` x
+    TCheckerboard x -> (tag "texture" # ("type", "checkerboard"))
+                    `appendChildren` x
+    TGridtexture  x -> (tag "texture" # ("type", "gridtexture"))
+                    `appendChildren` x
+    TScale        x -> (tag "texture" # ("type", "scale"))
+                    `appendChildren` x
+    TVertexcolors   -> (tag "texture" # ("type", "vertexcolors"))
+    TWireframe    x -> (tag "texture" # ("type", "wireframe"))
+                    `appendChildren` x
+    TCurvature    x -> (tag "texture" # ("type", "curvature"))
+                    `appendChildren` x
+    
 
 data Cube = Cube 
    { cubeFlipNormals :: Bool
