@@ -25,6 +25,9 @@ import Control.Lens
 import Data.Default.Generics
 default (Text, Integer, Double)
 
+-- TODO pull of the xml into it's own file
+-- make sure that the mitsubi can load it without errors
+
 assertElement x y = assertEqual 
   ( unlines 
       [ "Actual:"
@@ -1428,33 +1431,88 @@ case_curvature_toXML
       </texture>
   |]
 
-{-
 
-_case_dipole_toXML 
-  = () `assertElement` [xmlQQ|
+actualDipole = SDipole $ Dipole 
+  { dipoleMaterialStyle 
+      = MSSigmaAS 
+      $ SigmaAS 
+          (SRGB $ RGBLTriple $ RGBTriple 1.04 5.6 11.6)
+          (SRGB $ RGBLTriple $ RGBTriple 87.2 127.2 143.2) 
+  , dipoleScale         = 1.0
+  , dipoleIntIOR        = RKM Water
+  , dipoleExtIOR        = RKM Air
+  , dipoleIrrSamples    = 64
+  }
+
+case_dipole_toXML 
+  = actualDipole `assertElement` [xmlQQ|
   <subsurface type="dipole">
     <string name="intIOR" value="water"/>
     <string name="extIOR" value="air"/>
-    <rgb name="sigmaS" value="87.2, 127.2, 143.2"/>
-    <rgb name="sigmaA" value="1.04, 5.6, 11.6"/>
+    <float name="scale" value="1.0" />
+    <rgb name="sigmaS" value="87.200, 127.200, 143.200"/>
+    <rgb name="sigmaA" value="1.040, 5.600, 11.600"/>
     <integer name="irrSamples" value="64"/>
   </subsurface>
   |]
 
-_case_homogeneous_toXML 
-  = () `assertElement` [xmlQQ|
-  <medium id="myMedium" type="homogeneous"> 
-    <spectrum name="sigmaS" value="1"/> 
-    <spectrum name="sigmaA" value="0.05"/>
+actualHomogeneous 
+  = MHomogeneous 
+  $ Homogeneous 
+     { homogeneousMaterialStyle 
+          = MSSigmaAS 
+          $ SigmaAS
+              (SUniform 0.05)
+              (SUniform 1)
+     , homogeneousScale = 1.0
+     , homogeneousPhase = PHg $ HG 0.7
+     }
+
+case_homogeneous_toXML 
+  = actualHomogeneous `assertElement` [xmlQQ|
+  <medium type="homogeneous"> 
+    <spectrum name="sigmaS" value="1.0"/> 
+    <spectrum name="sigmaA" value="5.0e-2"/>
+    <float name="scale" value="1.0" />
     
     <phase type="hg">
       <float name="g" value="0.7"/>
     </phase> 
   </medium>
   |]
-  
-_case_heterogeneous_toXML 
-  = () `assertElement` [xmlQQ|
+
+actualHeterogeneous 
+  = MHeterogeneous
+  $ Heterogeneous
+      { heterogeneousMethod      = Simpson
+      , heterogeneousDensity     
+          = VDSGridVolume
+          $ GridVolume 
+              { gridVolumeFilename = "frame_0150.vol"
+              , gridVolumeSendData = SendAcrossNetwork
+              , gridVolumeToWorld  = mempty
+              , gridVolumeMin      = Point 0 0 0
+              , gridVolumeMax      = Point 0 0 0
+              }
+      , heterogeneousAlbedo      = VDSConstVolume  
+                                 $ CVSpectrum
+                                 $ SUniform 0.9
+      , heterogeneousOrientation 
+          = VDSVolCache
+          $ VolCache
+              { volCacheBlockSize   = 1
+              , volCacheVoxelWidth  = 2.0
+              , volCacheMemoryLimit = 3
+              , volCacheToWorld     = mempty
+              , volCacheChild       = CRef $ Ref "volCacheChild"
+              }
+             
+      , heterogeneousScale       = 200
+      , heterogenousPhase        = CNested $ PIsotropic
+      }
+
+case_heterogeneous_toXML 
+  = actualHeterogeneous `assertElement` [xmlQQ|
   <medium type="heterogeneous" id="smoke">
     <string name="method" value="simpson"/>
 
@@ -1468,10 +1526,11 @@ _case_heterogeneous_toXML
 
     <phase type="isotropic"/>
     
-    <float name="scale" value="200"/> 
+    <float name="scale" value="200.0"/> 
   </medium>
   |]
 
+{-
 _case_isotropic_toXML 
   = () `assertElement` [xmlQQ|<phase type="isotropic"/>|]
 

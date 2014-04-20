@@ -1137,7 +1137,7 @@ instance ToElement MicroFlake
 
 -- Combine with other mixture phases
 data MixturePhase = MixturePhase
-   { mixturePhaseChildren :: [(Double, Child PhaseFunction)]
+   { mixturePhaseChildren :: [(Double, Child Phase)]
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default MixturePhase
@@ -1248,8 +1248,8 @@ instance ToElement SSSMaterial where
       SuisseMocha          -> "Suisse Mocha"
 
 data SigmaAS = SigmaAS 
-   { sigmaASA :: Spectrum
-   , sigmaASS :: Spectrum
+   { sigmaASSigmaA :: Spectrum
+   , sigmaASSigmaS :: Spectrum
    }
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
@@ -1274,26 +1274,37 @@ instance Default MaterialStyle
 instance ToElement MaterialStyle where
    toElement = forwardToElement
 
-data PhaseFunction 
-   = PFIsotropic 
-   | PFHG        Double
-   | PFRayleigh  
-   | PFKKay
-   | PFMicroflake   MicroFlake
-   | PFMixturePhase MixturePhase
+newtype HG = HG { hgg :: Double }
+  deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance Default HG
+instance ToElement HG
+
+data Phase 
+   = PIsotropic 
+   | PHg        HG
+   | PRayleigh  
+   | PKKay
+   | PMicroflake   MicroFlake
+   | PMixturephase MixturePhase
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default PhaseFunction
-instance ToElement PhaseFunction
+instance Default Phase
+instance ToElement Phase
 
 data Homogeneous = Homogeneous 
    { homogeneousMaterialStyle :: MaterialStyle
    , homogeneousScale         :: Double
-   , homogeneousPhase         :: PhaseFunction
+   , homogeneousPhase         :: Phase
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Homogeneous
-instance ToElement Homogeneous
+instance ToElement Homogeneous where
+  toElement Homogeneous {..} 
+    =  (tag "homogeneous" 
+    .> ("scale", homogeneousScale)
+    .!> ("phase", homogeneousPhase))
+    `appendChildren` homogeneousMaterialStyle
    
 data HeterogeneousSampling 
    = Simpson
@@ -1363,28 +1374,27 @@ data Heterogeneous = Heterogeneous
    , heterogeneousAlbedo      :: VolumeDataSource 
    , heterogeneousOrientation :: VolumeDataSource
    , heterogeneousScale       :: Double
-   , heterogenousPhase        :: Child PhaseFunction
+   , heterogenousPhase        :: Child Phase
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Heterogeneous
 instance ToElement Heterogeneous
    
-data PartcipatingMedia 
-   = PMHomogeneous   Homogeneous 
-   | PMHeterogeneous Heterogeneous
+data Medium 
+   = MHomogeneous   Homogeneous 
+   | MHeterogeneous Heterogeneous
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default PartcipatingMedia
-instance ToElement PartcipatingMedia where
-   toElement = forwardToElement
+instance Default Medium
+instance ToElement Medium 
 
 data MediumPair = MediumPair 
-   { mediumPairInterior :: Child PartcipatingMedia
-   , mediumPairExterior :: Child PartcipatingMedia
+   { mediumPairInterior :: Child Medium
+   , mediumPairExterior :: Child Medium
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default MediumPair
-instance Each MediumPair MediumPair (Child PartcipatingMedia) (Child PartcipatingMedia) where
+instance Each MediumPair MediumPair (Child Medium) (Child Medium) where
    each f MediumPair {..}
        =  MediumPair 
       <$> f mediumPairInterior
@@ -1483,19 +1493,24 @@ data Dipole = Dipole
    , dipoleScale         :: Double
    , dipoleIntIOR        :: Refraction
    , dipoleExtIOR        :: Refraction
-   , dipoleIRRSamples    :: Integer
+   , dipoleIrrSamples    :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default Dipole
-instance ToElement Dipole   
+instance ToElement Dipole where
+  toElement Dipole {..}
+    =  (tag "dipole"
+    .> ("scale", dipoleScale)
+    .> ("intIOR", dipoleIntIOR)
+    .> ("extIOR", dipoleExtIOR)
+    .> ("irrSamples", dipoleIrrSamples))
+    `appendChildren` dipoleMaterialStyle
    
-data SSS 
-   = SSSDipole Dipole
+data Subsurface = SDipole Dipole
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance ToElement SSS
-instance Default SSS
-
+instance ToElement Subsurface
+instance Default Subsurface
 
 data FOVType
    = FOVTX
@@ -2233,9 +2248,9 @@ data SceneNodeData
    = SNShape             Shape
    | SNBSDF              BSDF
    | SNTexture           Texture
-   | SNSSS               SSS
-   | SNPartcipatingMedia PartcipatingMedia
-   | SNPhaseFunction     PhaseFunction
+   | SNSSS               Subsurface
+   | SNMedium Medium
+   | SNPhase             Phase
    | SNVolumeDataSource  VolumeDataSource
    | SNEmitter           Emitter
    | SNSensor            Sensor
