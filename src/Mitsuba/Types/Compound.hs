@@ -167,7 +167,8 @@ data Checkerboard = Checkerboard
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Checkerboard
-instance ToElement Checkerboard
+instance ToElement Checkerboard 
+  
 
 data GridTexture = GridTexture
    { gridTextureColor0    :: Spectrum
@@ -449,15 +450,15 @@ instance ToElement ThinDielectric
 data Distribution 
    = Beckmann
    | GGX
-   | Phong
+   | PhongDistribution
     deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Enum, Bounded)
 
 instance Default Distribution
 instance ToAttributeValue Distribution where
    toAttributeValue = \case
-      Beckmann -> "beckmann"
-      GGX      -> "ggx"
-      Phong    -> "phong"
+      Beckmann          -> "beckmann"
+      GGX               -> "ggx"
+      PhongDistribution -> "phong"
 
 instance ToElement Distribution where
    toElement = toElement . toAttributeValue
@@ -705,48 +706,52 @@ instance ToElement RoughPlastic where
     .>  ("diffuseReflectance" , roughPlasticDiffuseReflectance)
     .>  ("nonlinear"          , roughPlasticNonlinear)
 
-data SmoothDielectricCoating = SmoothDielectricCoating
-   { smoothDielectricCoatingIntIOR             :: Refraction
-   , smoothDielectricCoatingExtIOR             :: Refraction
-   , smoothDielectricCoatingThickness          :: Double
-   , smoothDielectricCoatingSigmaA             :: Color
-   , smoothDielectricCoatingSpecularReflection :: Color
-   , smoothDielectricCoatingChild              :: Child BSDF
+data Coating = Coating
+   { coatingIntIOR             :: Refraction
+   , coatingExtIOR             :: Refraction
+   , coatingThickness          :: Double
+   , coatingSigmaA             :: Color
+   , coatingSpecularReflection :: Color
+   , coatingChild              :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
-instance Default SmoothDielectricCoating
-instance ToElement SmoothDielectricCoating   
+instance Default Coating
+instance ToElement Coating where
+  toElement 
+    = set (elementChildrenL . at "child" . _Just . childItemTypeL . _Nested) 
+      E.Hidden . 
+      defaultGeneric 
+      
+data RoughCoating = RoughCoating
+   { roughCoatingAlpha               :: AlphaDistribution
+   , roughCoatingIntIOR              :: IndexOfRefraction
+   , roughCoatingExtIOR              :: IndexOfRefraction
+   , roughCoatingThickness           :: Double
+   , roughCoatingSigmaA              :: Color
+   , roughCoatingSpecularReflectance :: Color
+   , roughCoatingChild               :: Child BSDF
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Default RoughCoating
+instance ToElement RoughCoating
+
+data BumpMap = BumpMap 
+   { bumpMapMap  :: Texture
+   , bumpMapBSDF :: Child BSDF
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+
+instance Default BumpMap
+instance ToElement BumpMap where
+  toElement = allInvisible . defaultGeneric 
+
+data Phong = Phong
+   { phongExponent            :: Luminance
+   , phongSpecularReflectance :: Color
+   , phongDiffuseReflectance  :: Color 
+   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
--- TODO make a Coating a = Coating { coatingData :: a, child :: BSDF }   
-data RoughDielectricCoating = RoughDielectricCoating
-   { roughDielectricCoatingAlpha               :: AlphaDistribution
-   , roughDielectricCoatingIntIOR              :: IndexOfRefraction
-   , roughDielectricCoatingExtIOR              :: IndexOfRefraction
-   , roughDielectricCoatingThickness           :: Double
-   , roughDielectricCoatingSigmaA              :: Color
-   , roughDielectricCoatingSpecularReflectance :: Color
-   , roughDielectricCoatingChild               :: Child BSDF
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-
-instance Default RoughDielectricCoating
-instance ToElement RoughDielectricCoating
-
-data Bump = Bump 
-   { bumpMap  :: Texture
-   , bumpBSDF :: Child BSDF
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-
-instance Default Bump
-instance ToElement Bump
-
-data ModifiedPhong = ModifiedPhong
-   { modifiedPhongExponent            :: Luminance
-   , modifiedPhongSpecularReflectance :: Color
-   , modifiedPhongDiffuseReflectance  :: Color 
-   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
-   
-instance Default ModifiedPhong
-instance ToElement ModifiedPhong
+instance Default Phong
+instance ToElement Phong
    
 data WardType
    = WTWard
@@ -777,7 +782,7 @@ instance Default Ward
 instance ToElement Ward
    
 data MixtureBSDF = MixtureBSDF 
-   { mixtureBSDFChildren :: [(Double, BSDF)]
+   { mixtureBSDFChildren :: [(Double, Child BSDF)]
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default MixtureBSDF
@@ -791,12 +796,29 @@ instance ToElement MixtureBSDF where
            map toElement children
 
 data BlendBSDF = BlendBSDF
-   { blendBSDFWeight :: Luminance
-   , blendBSDFChild  :: Child BSDF
+   { blendBSDFWeight  :: Luminance
+   , blendBSDFChild0  :: Child BSDF
+   , blendBSDFChild1  :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default BlendBSDF
-instance ToElement BlendBSDF
+instance ToElement BlendBSDF where
+  toElement 
+    = set ( elementChildrenL 
+          . at "child0" 
+          . _Just 
+          . childItemTypeL 
+          . _Nested
+          ) 
+          E.Hidden
+    . set ( elementChildrenL 
+          . at "child1" 
+          . _Just 
+          . childItemTypeL 
+          . _Nested
+          ) 
+          E.Hidden 
+    . defaultGeneric
    
 data Mask = Mask 
    { maskOpacity :: Color
@@ -804,7 +826,16 @@ data Mask = Mask
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default Mask
-instance ToElement Mask
+instance ToElement Mask where
+  toElement 
+    = set ( elementChildrenL 
+          . at "child" 
+          . _Just 
+          . childItemTypeL 
+          . _Nested
+          ) 
+      E.Hidden . 
+      defaultGeneric
    
 data Twosided = Twosided 
    { twosidedChild :: Child BSDF
@@ -832,7 +863,16 @@ data HK = HK
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default HK
-instance ToElement HK
+instance ToElement HK where
+  toElement 
+    = set ( elementChildrenL 
+          . at "child" 
+          . _Just 
+          . childItemTypeL 
+          . _Nested
+          ) 
+      E.Hidden . 
+      defaultGeneric
    
 data Irawan = Irawan
    { irawanFilename             :: FilePath
@@ -852,32 +892,31 @@ instance ToElement Irawan where
         ] ++ map (T.pack *** forwardToElement) irawanAdditionalParameters
 
 data BSDF 
-   = BSDFDiffuse                 Diffuse 
-   | BSDFRoughdiffuse            RoughDiffuse
-   | BSDFDielectric              Dielectric
-   | BSDFThindielectric          ThinDielectric
-   | BSDFRoughdielectric         RoughDielectric
-   | BSDFConductor               Conductor
-   | BSDFRoughconductor          RoughConductor
-   | BSDFPlastic                 Plastic
-   | BSDFRoughplastic            RoughPlastic
-   | BSDFSmoothdielectriccoating SmoothDielectricCoating
-   | BSDFRoughdielectriccoating  RoughDielectricCoating
-   | BSDFBump                    Bump
-   | BSDFModifiedphong           ModifiedPhong
-   | BSDFWard                    Ward
-   | BSDFMixtureBSDF             MixtureBSDF
-   | BSDFBlendBSDF               BlendBSDF
-   | BSDFMask                    Mask
-   | BSDFTwosided                Twosided
-   | BSDFDifftrans               Difftrans
-   | BSDFHK                      HK
-   | BSDFIrawan                  Irawan
+   = BSDFDiffuse         Diffuse 
+   | BSDFRoughdiffuse    RoughDiffuse
+   | BSDFDielectric      Dielectric
+   | BSDFThindielectric  ThinDielectric
+   | BSDFRoughdielectric RoughDielectric
+   | BSDFConductor       Conductor
+   | BSDFRoughconductor  RoughConductor
+   | BSDFPlastic         Plastic
+   | BSDFRoughplastic    RoughPlastic
+   | BSDFCoating         Coating
+   | BSDFRoughcoating    RoughCoating
+   | BSDFBumpmap         BumpMap
+   | BSDFPhong           Phong
+   | BSDFWard            Ward
+   | BSDFMixturebsdf     MixtureBSDF
+   | BSDFBlendbsdf       BlendBSDF
+   | BSDFMask            Mask
+   | BSDFTwosided        Twosided
+   | BSDFDifftrans       Difftrans
+   | BSDFHk              HK
+   | BSDFIrawan          Irawan
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default BSDF
 instance ToElement BSDF
-
 
 data PointLight = PointLight
    { pointLightToWorld        :: Transform

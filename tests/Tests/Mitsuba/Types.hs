@@ -1047,113 +1047,242 @@ case_roughplastic_toXML
   |]
 
 actualCoating :: BSDF
-actualCoating = def
-
+actualCoating 
+  = BSDFCoating
+  $ Coating
+    { coatingIntIOR             = IOR 1.7
+    , coatingExtIOR             = IOR 1.0
+    , coatingThickness          = 1.0
+    , coatingSigmaA             = CSpectrum $ SUniform 0.0
+    , coatingSpecularReflection = CSpectrum $ SUniform 1.0
+    , coatingChild              
+        = CNested 
+        $ BSDFRoughconductor
+        $ RoughConductor
+            { roughConductorAlpha        
+                = ADUniformAlpha
+                $ UniformAlpha Beckmann $ UniformLuminance 0.1
+            , roughConductorConductance  = CConductorType Copper
+            , roughConductorExtEta       = def
+            , roughConductorSpecularReflectance = def
+            }
+    }
+    
 case_coating_toXML 
   = actualCoating `assertElement` [xmlQQ|
     <bsdf type="coating">
       <float name="intIOR" value="1.7"/>
+      <float name="extIOR" value="1.0"/>
       <bsdf type="roughconductor">
+        <string name="distribution" value="beckmann"/>
         <string name="material" value="Cu"/>
         <float name="alpha" value="0.1"/>
+        <string name="extEta" value="vacuum"/>
+        <texture name="specularReflectance"/>
       </bsdf>
+      
+      <spectrum name="specularReflection" value="1.0"/>
+      <spectrum name="sigmaA" value="0.0"/>
+      <float name="thickness" value="1.0"/>
     </bsdf>  
   |]
 
-{-
-_case_bump_toXML 
-  = () `assertElement` [xmlQQ|
-  <bsdf type="bump">
-  
-  <bsdf type="roughconductor"/>
-    <texture type="scale">  
-      <float name="scale" value="10"/>
-      <texture type="bitmap">
-      <string name="filename" value="bumpmap.png"/>
-      </texture> 
+actualBump 
+  = BSDFBumpmap
+  $ BumpMap
+    { bumpMapMap  = TCheckerboard $ Checkerboard
+        { checkerboardColor0  = SUniform 0
+        , checkerboardColor1  = SUniform 1
+        , checkerboardUoffset = 1
+        , checkerboardVoffset = 2
+        , checkerboardUscale  = 3
+        , checkerboardVscale  = 4
+        }
+    , bumpMapBSDF = CRef $ Ref "childBSDF"
+    }
+
+case_bump_toXML 
+  = actualBump `assertElement` [xmlQQ|
+  <bsdf type="bumpmap">
+    <texture type="checkerboard">
+      <float name="uscale" value="3.0"/>
+      <float name="voffset" value="2.0"/>
+      <spectrum name="color1" value="1.0"/>
+      <spectrum name="color0" value="0.0"/>
+      <float name="uoffset" value="1.0"/>
+      <float name="vscale" value="4.0"/>
     </texture>
+    <ref id="childBSDF"/>
   </bsdf>
-  
   |]
 
---TODO phong
+actualPhong 
+  = BSDFPhong
+  $ Phong
+      { phongExponent            = UniformLuminance 1.0
+      , phongSpecularReflectance = CSpectrum $ SUniform 2.0
+      , phongDiffuseReflectance  = CSpectrum $ SUniform 3.0
+      }
+      
+case_phong_toXML 
+  = actualPhong `assertElement` [xmlQQ|
+    <bsdf type="phong">
+      <float name="exponent" value="1.0" />
+      <spectrum name="specularReflectance" value="2.0" />
+      <spectrum name="diffuseReflectance"   value="3.0" />      
+    </bsdf>
+  
+  |]
 -- TODO ward
 
-_case_mixturebsdf_toXML 
-  = () `assertElement` [xmlQQ|
+actualWard 
+  = BSDFWard
+  $ Ward 
+      { wardVariant             = WTWard
+      , wardAlphaU              = UniformLuminance 1.0
+      , wardAlphaV              = UniformLuminance 2.0
+      , wardSpecularReflectance = CSpectrum $ SUniform 3.0
+      , wardDiffuseReflectance  = CSpectrum $ SUniform 4.0
+      }
+
+case_ward_toXML 
+  = actualWard `assertElement` [xmlQQ|
+    <bsdf type="ward">
+      <string name="variant" value="ward" />
+      <float name="alphaU" value="1.0" />
+      <float name="alphaV" value="2.0" />
+      <spectrum name="specularReflectance" value="3.0" />
+      <spectrum name="diffuseReflectance"   value="4.0" />      
+    </bsdf>
+
+  |]
+
+actualMixtureBSDF 
+  = BSDFMixturebsdf 
+  $ MixtureBSDF
+      [ (0.7, CRef $ Ref "child0")
+      , (0.3, CRef $ Ref "child1")
+      ]
+
+case_mixturebsdf_toXML 
+  = actualMixtureBSDF `assertElement` [xmlQQ|
   <bsdf type="mixturebsdf">
     <string name="weights" value="0.7, 0.3"/>
     
-    <bsdf type="dielectric"/>
-    
-    <bsdf type="roughdielectric">
-      <float name="alpha" value="0.3"/>
-    </bsdf> 
+    <ref id="child0" />
+    <ref id="child1" />
   
   </bsdf>
   |]
 
+actualBlendBSDF 
+  = BSDFBlendbsdf
+  $ BlendBSDF
+      { blendBSDFWeight = UniformLuminance 0.5
+      , blendBSDFChild0  = CRef $ Ref "child0"
+      , blendBSDFChild1  = CRef $ Ref "child1"
+      }
 
-_case_blendbsdf_toXML 
-  = () `assertElement` [xmlQQ|
+case_blendbsdf_toXML 
+  = actualBlendBSDF `assertElement` [xmlQQ|
   <bsdf type="blendbsdf">
-    <texture name="weight" type="bitmap">
-      <string name="wrapMode" value="repeat"/>
-      <string name="filename" value="pattern.png"/> 
-    </texture>
+    <float name="weight" value="0.5" />
     
-    <bsdf type="conductor">
-      <string name="material" value="Au"/>
-    </bsdf>
+    <ref id="child0" />
+    <ref id="child1" />
     
-    <bsdf type="roughplastic">
-      <spectrum name="diffuseReflectance" value="0"/>
-    </bsdf> 
   </bsdf>
   |]
 
-_case_mask_toXML 
-  = () `assertElement` [xmlQQ|
+actualMask 
+  = BSDFMask
+  $ Mask
+      (CSpectrum $ SUniform 1.0)
+      $ CRef $ Ref "child"
+
+  
+
+case_mask_toXML 
+  = actualMask `assertElement` [xmlQQ|
   <bsdf type="mask">
-    <!-- Base material: a two-sided textured diffuse BSDF --> 
-    <bsdf type="twosided">
-      <bsdf type="diffuse">
-        <texture name="reflectance" type="bitmap">
-          <string name="filename" value="leaf.png"/> 
-          </texture>
-      </bsdf> 
-    </bsdf>
-    
-    <texture name="opacity" type="bitmap">
-      <string name="filename" value="leaf.png"/> 
-      <string name="channel" value="a"/>
-    </texture>
+    <ref id="child" />
+    <spectrum name="opacity" value="1.0" />
   </bsdf>
   |]
 
-_case_twosided_toXML
-  = () `assertElement` [xmlQQ|
+actualTwosided 
+  = BSDFTwosided
+  $ Twosided
+  $ CRef
+  $ Ref "child"    
+
+case_twosided_toXML
+  = actualTwosided `assertElement` [xmlQQ|
     <bsdf type="twosided"> 
-      <bsdf type="diffuse">
-        <spectrum name="reflectance" value="0.4"/>
-      </bsdf> 
-    </bsdf>  
+      <ref id="child" />
+    </bsdf>
+  |]
+
+--TODO difftrans
+
+actualDifftrans 
+  = BSDFDifftrans
+  $ Difftrans 
+  $ CSpectrum
+  $ SUniform 0.5
+  
+case_difftrans_toXML 
+  = actualDifftrans `assertElement` [xmlQQ|
+     <bsdf type="difftrans">
+        <spectrum name="transmittance" value="0.5" />
+     </bsdf>
+  |]
+
+actualHK 
+  = BSDFHk
+  $ HK 
+    { hkMaterial  = Hydrogen
+    , hkSigmaS    = CSpectrum $ SUniform 1.0
+    , hkSigmaA    = CSpectrum $ SUniform 2.0
+    , hkSigmaT    = CSpectrum $ SUniform 3.0
+    , hkAlbedo    = CSpectrum $ SUniform 4.0
+    , hkThickness = 1.0
+    , hkChild     = CRef $ Ref "child"
+    }
+
+case_hk_toXML 
+  = actualHK `assertElement` [xmlQQ|
+  <bsdf type="hk">
+    <spectrum name="sigmaS" value="1.0"/>
+    <spectrum name="sigmaT" value="3.0"/>
+    <string name="material" value="hydrogen"/>
+    <spectrum name="sigmaA" value="2.0"/>
+    <float name="thickness" value="1.0"/>
+    <spectrum name="albedo" value="4.0"/>
+    <ref id="child"/>  
+  </bsdf>
   |]
   
---TODO difftrans
-_case_hk_toXML 
-  = () `assertElement` [xmlQQ|
-  <bsdf type="hk">
-    <spectrum name="sigmaS" value="2"/>
-    <spectrum name="sigmaA" value="0.1"/> 
-    <float name="thickness" value="0.1"/>
-    <phase type="hg">
-      <float name="g" value="0.8"/>
-    </phase> 
-  </bsdf>
+actualIrawan 
+  = BSDFIrawan
+  $ Irawan 
+      { irawanFilename             = "irawan.path"
+      , irawanRepeatU              = 1.0
+      , irawanRepeatV              = 2.0
+      , irawanAdditionalParameters = [("param", Right 3.0)]
+      }
+
+case_irawan_toXML 
+  = actualIrawan `assertElement` [xmlQQ|
+      <bsdf type="irawan">
+        <string name="filename" value="irawan.path" />
+        <float name="repeatU" value="1.0" />
+        <float name="repeatV" value="2.0" />
+        <float name="param" value="3.0" />
+      </bsdf>
   |]
 
--- TODO irawan
+{-
 
 -- TODO  checkerboard
 -- TODO gridtexture
