@@ -1578,33 +1578,89 @@ case_mixturephase_toXML
     </phase>
   |]
 
+actualConstVolume0 
+  = VConstvolume  
+  $ CVDouble 1.0
+
+case_constvolume_0_toXML 
+  = actualConstVolume0 `assertElement` [xmlQQ|
+  <volume type="constvolume" >
+    <float name="value" value="1.0"/>
+  </volume>
+  |]
+
+actualConstVolume1 
+  = VConstvolume  
+  $ CVSpectrum
+  $ SRGB
+  $ RGBLTriple
+  $ RGBTriple 0.9 0.9 0.7
+
+case_constvolume_1_toXML 
+  = actualConstVolume1 `assertElement` [xmlQQ|
+  <volume type="constvolume" >
+    <rgb name="value" value="0.900, 0.900, 0.700"/>
+  </volume>
+  |]
+
+actualConstVolume2
+  = VConstvolume  
+  $ CVVector
+  $ Vector 0 1 0
+
+case_constvolume_2_toXML 
+  = actualConstVolume2 `assertElement` [xmlQQ|
+  <volume type="constvolume" >
+    <vector name="value" x="0.0" y="1.0" z="0.0"/> 
+  </volume>
+  |]
+
+-- TODO gridvolume
+
+actualGridVolume 
+  = VGridvolume
+  $ GridVolume 
+    { gridVolumeFilename = "frame_0150.vol"
+    , gridVolumeSendData = SendAcrossNetwork
+    , gridVolumeToWorld  = mempty
+    , gridVolumeMin      = Point 0 0 0
+    , gridVolumeMax      = Point 0 0 0
+    }
+
+case_gridvolume_toXML 
+  = actualGridVolume `assertElement` [xmlQQ|
+      <volume type="gridvolume">
+        <point name="max" z="0.0" x="0.0" y="0.0"/>
+        <bool name="sendData" value="true"/>
+        <point name="min" z="0.0" x="0.0" y="0.0"/>
+        <string name="filename" value="frame_0150.vol"/>
+        <transform name="toWorld"/>
+      </volume>
+  |]
+
+actualVolCache 
+  = VVolcache
+  $ VolCache
+      { volCacheBlockSize   = 1
+      , volCacheVoxelWidth  = 2.0
+      , volCacheMemoryLimit = 3
+      , volCacheToWorld     = mempty
+      , volCacheChild       = CRef $ Ref "volCacheChild"
+      }
+    
+case_volcache_toXML 
+  = actualVolCache `assertElement` [xmlQQ|
+    <volume type="volcache">
+      <integer name="blockSize" value="1"/>
+      <integer name="memoryLimit" value="3"/>
+      <ref name="child" id="volCacheChild"/>
+      <float name="voxelWidth" value="2.0"/>
+      <transform name="toWorld"/>
+    </volume>
+  |]
+
 {-
 
-_case_constvolume_0_toXML 
-  = () `assertElement` [xmlQQ|
-  <volume type="constvolume" >
-    <float name="value" value="1"/>
-  </volume>
-  |]
-
-_case_constvolume_1_toXML 
-  = () `assertElement` [xmlQQ|
-  <volume type="constvolume" >
-    <rgb name="value" value="0.9 0.9 0.7"/>
-  </volume>
-  |]
-
-_case_constvolume_2_toXML 
-  = () `assertElement` [xmlQQ|
-  <volume type="constvolume" >
-    <vector name="value" x="0" y="1" z="0"/> 
-  </volume>
-  |]
-
---TODO  make grid format binary format
--- TODO gridformat
-
--- TODO  volcache
 -- TODO point light
 
 _case_area_toXML
