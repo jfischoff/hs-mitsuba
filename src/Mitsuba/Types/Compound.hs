@@ -734,12 +734,12 @@ data Coating = Coating
    , coatingChild              :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
+
 instance Default Coating
 instance ToElement Coating where
   toElement 
-    = set (elementChildrenL . at "child" . _Just . childItemTypeL . _Nested) 
-      E.Hidden . 
-      defaultGeneric 
+    = hideChild "child"
+    . defaultGeneric 
       
 data RoughCoating = RoughCoating
    { roughCoatingAlpha               :: AlphaDistribution
@@ -823,20 +823,8 @@ data BlendBSDF = BlendBSDF
 instance Default BlendBSDF
 instance ToElement BlendBSDF where
   toElement 
-    = set ( elementChildrenL 
-          . at "child0" 
-          . _Just 
-          . childItemTypeL 
-          . _Nested
-          ) 
-          E.Hidden
-    . set ( elementChildrenL 
-          . at "child1" 
-          . _Just 
-          . childItemTypeL 
-          . _Nested
-          ) 
-          E.Hidden 
+    = hideChild "child0"
+    . hideChild "child1"
     . defaultGeneric
    
 data Mask = Mask 
@@ -847,14 +835,8 @@ data Mask = Mask
 instance Default Mask
 instance ToElement Mask where
   toElement 
-    = set ( elementChildrenL 
-          . at "child" 
-          . _Just 
-          . childItemTypeL 
-          . _Nested
-          ) 
-      E.Hidden . 
-      defaultGeneric
+    = hideChild "child" 
+    . defaultGeneric
    
 data Twosided = Twosided 
    { twosidedChild :: Child BSDF
@@ -884,14 +866,8 @@ data HK = HK
 instance Default HK
 instance ToElement HK where
   toElement 
-    = set ( elementChildrenL 
-          . at "child" 
-          . _Just 
-          . childItemTypeL 
-          . _Nested
-          ) 
-      E.Hidden . 
-      defaultGeneric
+    = hideChild "child" 
+    . defaultGeneric
    
 data Irawan = Irawan
    { irawanFilename             :: FilePath
@@ -1144,11 +1120,12 @@ instance Default MixturePhase
 instance ToElement MixturePhase where
    toElement MixturePhase {..} = 
       let (weights, phaseFunctions) = unzip mixturePhaseChildren
-      in addChildList (tag "mixturephase") $
-            ( primitive "weights" 
-                $ T.intercalate ", " 
-                $ map (T.pack . show) weights
-            ) : map toElement phaseFunctions
+      in addChildList (tag "mixturephase" 
+                      .> ( "weights"
+                         , T.intercalate ", " 
+                             $ map (T.pack . show) weights
+                         ))
+                      $ map toElement phaseFunctions
          
 data SSSMaterial 
    = Apple
@@ -1284,13 +1261,20 @@ data Phase
    = PIsotropic 
    | PHg        HG
    | PRayleigh  
-   | PKKay
+   | PKay      
    | PMicroflake   MicroFlake
    | PMixturephase MixturePhase
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Phase
-instance ToElement Phase
+instance ToElement Phase where
+  toElement = \case
+    PIsotropic      -> tag "phase" # ("type", "isotropic") 
+    PHg        x    -> (tag "phase" # ("type", "hg")) `appendChildren` x
+    PRayleigh       -> tag "phase" # ("type", "rayleigh")
+    PKay           -> tag "phase" # ("type", "kay")
+    PMicroflake   x -> (tag "phase" # ("type", "microflake"  )) `appendChildren` x
+    PMixturephase x -> (tag "phase" # ("type", "mixturephase")) `appendChildren` x
 
 data Homogeneous = Homogeneous 
    { homogeneousMaterialStyle :: MaterialStyle
@@ -1325,7 +1309,10 @@ data ConstVolume
 
 instance Default ConstVolume
 instance ToElement ConstVolume where
-   toElement = forwardToElement
+  toElement e = tag "constvolume" .> case e of
+    CVDouble   x -> ("value", toElement x)
+    CVSpectrum x -> ("value", toElement x)
+    CVVector   x -> ("value", toElement x)
    
 data SendDataType = SendAcrossNetwork | AssumeAvailable
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
@@ -1352,33 +1339,33 @@ data VolCache = VolCache
    , volCacheVoxelWidth  :: Double
    , volCacheMemoryLimit :: Integer
    , volCacheToWorld     :: RegularTransform
-   , volCacheChild       :: Child VolumeDataSource
+   , volCacheChild       :: Child Volume
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default VolCache
 instance ToElement VolCache
 
-data VolumeDataSource
-   = VDSConstVolume ConstVolume
-   | VDSGridVolume  GridVolume
-   | VDSVolCache    VolCache
+data Volume
+   = VConstvolume ConstVolume
+   | VGridvolume  GridVolume
+   | VVolcache    VolCache
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default VolumeDataSource
-instance ToElement VolumeDataSource where
-   toElement = forwardToElement
+instance Default Volume
+instance ToElement Volume
    
 data Heterogeneous = Heterogeneous
    { heterogeneousMethod      :: HeterogeneousSampling
-   , heterogeneousDensity     :: VolumeDataSource
-   , heterogeneousAlbedo      :: VolumeDataSource 
-   , heterogeneousOrientation :: VolumeDataSource
+   , heterogeneousDensity     :: Volume
+   , heterogeneousAlbedo      :: Volume 
+   , heterogeneousOrientation :: Volume
    , heterogeneousScale       :: Double
-   , heterogenousPhase        :: Child Phase
+   , heterogeneousPhase       :: Child Phase
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Heterogeneous
-instance ToElement Heterogeneous
+instance ToElement Heterogeneous where
+  toElement = hideChild "phase" . defaultGeneric 
    
 data Medium 
    = MHomogeneous   Homogeneous 
@@ -2251,7 +2238,7 @@ data SceneNodeData
    | SNSSS               Subsurface
    | SNMedium Medium
    | SNPhase             Phase
-   | SNVolumeDataSource  VolumeDataSource
+   | SNVolume  Volume
    | SNEmitter           Emitter
    | SNSensor            Sensor
    | SNIntegrator        Integrator

@@ -154,6 +154,15 @@ infixl 2 #
 
 x # (n, v) = addPrimitiveAttribute x n v
 
+hideChild childName 
+  = set ( elementChildrenL 
+        . at childName
+        . _Just 
+        . childItemTypeL 
+        . _Nested
+        )
+        Hidden
+
 -- I want to add an elements children 
 appendChildren :: (ToElement a, ToElement b)
                => a

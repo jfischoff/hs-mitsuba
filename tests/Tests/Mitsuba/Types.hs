@@ -1486,7 +1486,7 @@ actualHeterogeneous
   $ Heterogeneous
       { heterogeneousMethod      = Simpson
       , heterogeneousDensity     
-          = VDSGridVolume
+          = VGridvolume
           $ GridVolume 
               { gridVolumeFilename = "frame_0150.vol"
               , gridVolumeSendData = SendAcrossNetwork
@@ -1494,11 +1494,11 @@ actualHeterogeneous
               , gridVolumeMin      = Point 0 0 0
               , gridVolumeMax      = Point 0 0 0
               }
-      , heterogeneousAlbedo      = VDSConstVolume  
+      , heterogeneousAlbedo      = VConstvolume  
                                  $ CVSpectrum
                                  $ SUniform 0.9
       , heterogeneousOrientation 
-          = VDSVolCache
+          = VVolcache
           $ VolCache
               { volCacheBlockSize   = 1
               , volCacheVoxelWidth  = 2.0
@@ -1508,34 +1508,77 @@ actualHeterogeneous
               }
              
       , heterogeneousScale       = 200
-      , heterogenousPhase        = CNested $ PIsotropic
+      , heterogeneousPhase        = CNested $ PIsotropic
       }
 
 case_heterogeneous_toXML 
   = actualHeterogeneous `assertElement` [xmlQQ|
-  <medium type="heterogeneous" id="smoke">
-    <string name="method" value="simpson"/>
+<medium type="heterogeneous">
+  <phase type="isotropic"/>
+  <float name="scale" value="200.0"/>
+  <string name="method" value="simpson"/>
+  <volume name="density" type="gridvolume">
+    <point name="max" z="0.0" x="0.0" y="0.0"/>
+    <bool name="sendData" value="true"/>
+    <point name="min" z="0.0" x="0.0" y="0.0"/>
+    <string name="filename" value="frame_0150.vol"/>
+    <transform name="toWorld"/>
+  </volume>
+  <volume name="orientation" type="volcache">
+    <integer name="blockSize" value="1"/>
+    <integer name="memoryLimit" value="3"/>
+    <ref name="child" id="volCacheChild"/>
+    <float name="voxelWidth" value="2.0"/>
+    <transform name="toWorld"/>
+  </volume>
+  <volume name="albedo" type="constvolume">
+    <spectrum name="value" value="0.9"/>
+  </volume>
+</medium>
 
-    <volume name="density" type="gridvolume">
-      <string name="filename" value="frame_0150.vol"/>
-    </volume>
+  |]
 
-    <volume name="albedo" type="constvolume"> 
-      <spectrum name="value" value="0.9"/>
-    </volume>
+case_isotropic_toXML 
+  = PIsotropic `assertElement` [xmlQQ|<phase type="isotropic"/>|]
 
-    <phase type="isotropic"/>
-    
-    <float name="scale" value="200.0"/> 
-  </medium>
+case_hg_toXML 
+  = PHg (HG 0.5) `assertElement` [xmlQQ|
+    <phase type="hg"> 
+       <float name="g" value="0.5" /> 
+    </phase>
+  |]
+
+case_raleigh_toXML
+  = PRayleigh `assertElement` [xmlQQ|<phase type="rayleigh"/>|]
+
+case_kkay_toXML
+  = PKay `assertElement` [xmlQQ|<phase type="kay"/>|]
+
+case_microflake_toXML
+  = PMicroflake (MicroFlake 1.0) `assertElement` [xmlQQ|
+    <phase type="microflake">
+      <float name="stddev" value="1.0" />
+    </phase>
+  |]
+
+actualMixturephase 
+  = PMixturephase
+  $ MixturePhase
+      [ (0.7, CNested PRayleigh)
+      , (0.3, CNested PKay)
+      ]
+
+case_mixturephase_toXML
+  = actualMixturephase `assertElement` [xmlQQ|
+    <phase type="mixturephase">
+        <string name="weights" value="0.7, 0.3"/>
+        
+        <phase type="kay"/>
+        <phase type="rayleigh"/>
+    </phase>
   |]
 
 {-
-_case_isotropic_toXML 
-  = () `assertElement` [xmlQQ|<phase type="isotropic"/>|]
-
-
---TODO hg phase function, rayleigh, kkay, microflake, mixturephase
 
 _case_constvolume_0_toXML 
   = () `assertElement` [xmlQQ|
