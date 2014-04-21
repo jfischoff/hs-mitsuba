@@ -2138,7 +2138,6 @@ case_irradiancemeter_toXML
       </sensor>
   |]
 
-
 actualRadianceMeter
   = Sensor Nothing Nothing
   $ STRadiancemeter 
@@ -2204,11 +2203,26 @@ case_perspective_rdist_toXML
     <float name="farClip" value="8.0" />
   </sensor>
   |]
-  
+
+actualAmbientOcclusion 
+  = IAo
+  $ AmbientOcclusion 
+    { ambientOcclusionShadingSamples = 1
+    , ambientOcclusionRayLength     = 2
+    }
+    
+case_ao_toXML 
+  = actualAmbientOcclusion `assertElement` [xmlQQ|
+      <integrator type="ao">
+        <integer name="shadingSamples" value="1" />
+        <float name="rayLength" value="2.0" />
+      </integrator>
+  |]
+
+
 
 {-
   
--- TODO perspective_rdist
 
 -- TODO ao
 

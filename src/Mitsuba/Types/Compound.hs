@@ -1705,7 +1705,7 @@ instance ToElement Sensor where
                   ++ (maybeToList $ fmap toElement sensorSampler))
    
 data AmbientOcclusion = AmbientOcclusion 
-   { ambientOcclusionShdingSamples :: Integer
+   { ambientOcclusionShadingSamples :: Integer
    , ambientOcclusionRayLength     :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
@@ -1933,22 +1933,22 @@ instance Default IRRCache
 instance ToElement IRRCache
 
 data Integrator 
-   = IAmbientOcclusion AmbientOcclusion 
-   | IDirect           Direct
-   | IPath             Path
-   | IVolPathSimple    VolPathSimple
-   | IVolPath          VolPath
-   | IBDPT             BDPT
-   | IPhotonMapper     PhotonMapper
-   | IPPM              PPM
-   | ISPPM             SPPM
-   | IPSSMLT           PSSMLT
-   | IMLT              MLT
-   | IERPT             ERPT
-   | IPTracer          PTracer
-   | IAdaptive         Adaptive
-   | IVP1              VP1
-   | IIRRCache         IRRCache
+   = IAo            AmbientOcclusion 
+   | IDirect        Direct
+   | IPath          Path
+   | IVolPathSimple VolPathSimple
+   | IVolPath       VolPath
+   | IBDPT          BDPT
+   | IPhotonMapper  PhotonMapper
+   | IPPM           PPM
+   | ISPPM          SPPM
+   | IPSSMLT        PSSMLT
+   | IMLT           MLT
+   | IERPT          ERPT
+   | IPTracer       PTracer
+   | IAdaptive      Adaptive
+   | IVP1           VP1
+   | IIRRCache      IRRCache
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Integrator
