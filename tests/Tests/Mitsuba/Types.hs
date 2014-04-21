@@ -1958,83 +1958,255 @@ case_constant_toXML
       </emitter>
   |]
 
-{-
--- TODO more perspective tests
-_case_perspective_toXML 
-  = () `assertElement` [xmlQQ|
-  <sensor type="perspective">
-    <transform name="toWorld">
-      <lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>
-    </transform>
-  </sensor>
+actualPerspective 
+  = Sensor Nothing Nothing 
+  $ STPerspective
+  $ Perspective
+       { perspectiveToWorld      = mempty
+       , perspectiveFocalLength  = 1
+       , perspectiveFov          = 2
+       , perspectiveFovAxis      = FOVTX
+       , perspectiveShutterOpen  = 3
+       , perspectiveShutterClose = 4
+       , perspectiveNearClip     = 5
+       , perspectiveFarClip      = 6
+       }
+
+case_perspective_toXML 
+  = actualPerspective `assertElement` [xmlQQ|
+      <sensor type="perspective" >
+          <transform name="toWorld" />
+          <float name="focalLength" value="1.0" />
+          <float name="fov" value="2.0" />
+          <string name="fovAxis" value="tx" />
+          <float name="shutterOpen" value="3.0" />
+          <float name="shutterClose" value="4.0" />
+          <float name="nearClip" value="5.0" />
+          <float name="farClip" value="6.0" />
+      </sensor>
   |]
-  
-_case_thinlens_toXML 
-  = () `assertElement` [xmlQQ|
-  <sensor type="thinlens">
-    <transform name="toWorld">
-      <lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/>
-    </transform>
+
+actualThinLens 
+  = Sensor Nothing Nothing 
+  $ STThinlens
+  $ Thinlens
+      { thinlensToWorld         = mempty
+      , thinlensAperatureRadius = 1
+      , thinlensFocusDistance   = 2
+      , thinlensFocalLength     = 3
+      , thinlensFOV             = 4
+      , thinlensFOVAxis         = FOVTY
+      , thinlensShutterOpen     = 5
+      , thinlensShutterClose    = 6
+      , thinlensNearClip        = 7
+      , thinlensFarClip         = 8
+      }
+
+case_thinlens_toXML 
+  = actualThinLens `assertElement` [xmlQQ|
+    <sensor type="thinlens">
+      <transform name="toWorld" />
+      <float name="aperatureRadius" value="1.0" />
+      <float name="focusDistance" value="2.0" />
+      <string name="focalLength" value="3.0mm" />
+      <float name="fov" value="4.0" />
+      <string name="fovaxis" value="ty" />
+      <float name="shutterOpen" value="5.0" />
+      <float name="shutterClose" value="6.0" />
+      <float name="nearClip" value="7.0" />
+      <float name="farClip" value="8.0" />
+    </sensor>
+  |]
+
+actualOrthographic 
+  = Sensor Nothing Nothing 
+  $ STOrthographic
+  $ Orthographic
+      { orthographicToWorld      = mempty
+      , orthographicShutterOpen  = 1.0
+      , orthographicShutterClose = 2.0
+      , orthographicNearClip     = 3.0
+      , orthographicFarClip      = 4.0   
+      }
+
+case_orthographic_toXML 
+  = actualOrthographic `assertElement` [xmlQQ|
+      <sensor type="orthographic">
+          <transform name="toWorld" />
+          <float name="shutterOpen" value="1.0" />
+          <float name="shutterClose" value="2.0" />
+          <float name="nearClip" value="3.0" />
+          <float name="farClip" value="4.0" />
+      </sensor>
+  |]
+
+actualTelecentric 
+  = Sensor Nothing Nothing 
+  $ STTelecentric
+  $ Telecentric
+     { telecentricToWorld         = mempty
+     , telecentricAperatureRadius = 1
+     , telecentricFocusDistance   = 2
+     , telecentricShutterOpen     = 3
+     , telecentricShutterClose    = 4
+     , telecentricNearClip        = 5
+     , telecentricFarClip         = 6
+     }
+
+case_telecentric_toXML 
+  = actualTelecentric `assertElement` [xmlQQ|
+      <sensor type="telecentric">
+          <transform name="toWorld" />
+          <float name="aperatureRadius" value="1.0" />
+          <float name="focusDistance" value="2.0" />
+          <float name="shutterOpen" value="3.0" />
+          <float name="shutterClose" value="4.0" />
+          <float name="nearClip" value="5.0" />
+          <float name="farClip" value="6.0" />
+      </sensor>
+  |]
+
+actualSpherical 
+  = Sensor Nothing Nothing 
+  $ STSpherical
+  $ Spherical
+      { sphericalToWorld      = mempty
+      , sphericalShutterOpen  = 1.0
+      , sphericalShutterClose = 2.0
+      }
+
+case_spherical_toXML 
+  = actualSpherical `assertElement` [xmlQQ|
+    <sensor type="spherical">
+        <transform name="toWorld" />
+        <float name="shutterOpen" value="1.0" />
+        <float name="shutterClose" value="2.0" />
+    </sensor>
+  |]
+
+actualIrradianceMeter 
+  = Sensor 
+      { sensorFilm = Just 
+          ( FMFilm 
+            ( MFilm 
+              { mfilmWidth = 0
+              , mfilmHeight = 0
+              , mfilmCrop = Nothing
+              , mfilmFileFormat = Openexr
+              , mfilmDigits = 0
+              , mfilmVariable = ""
+              , mfilmPixelFormat = ""
+              , mfilmHighQualityEdges = False
+              , mfilmRFilter = RFBox
+              }
+            )
+          )
+        , sensorSampler = Just 
+            ( SSobol 
+              ( Sobol 
+                  { sobolSampleCount = 0
+                  , sobolScramble = 0
+                  }
+              )
+            )
+        , sensorType = STIrradiancemeter 
+          ( IrradianceMeter 
+              { irradianceMeterShutterOpen  = 1.0
+              , irradianceMeterShutterClose = 2.0
+              }
+          )
+        }
     
-    <float name="focusDistance" value="1"/>
-    <float name="apertureRadius" value="0.1"/> 
+case_irradiancemeter_toXML 
+  = actualIrradianceMeter `assertElement` [xmlQQ|
+      <sensor type="irradiancemeter">
+        <mfilm>
+          <integer name="digits" value="0"/>
+          <integer name="height" value="0"/>
+          <string name="rfilter" value="box"/>
+          <integer name="width" value="0"/>
+          <string name="variable" value=""/>
+          <boolean name="highQualityEdges" value="false"/>
+          <string name="pixelFormat" value=""/>
+        </mfilm>
+        <sampler type="sobol">
+          <integer name="sampleCount" value="0"/>
+          <integer name="scramble" value="0"/>
+        </sampler>
+        <float name="shutterOpen" value="1.0"/>
+        <float name="shutterClose" value="2.0"/>
+      </sensor>
+  |]
+
+
+actualRadianceMeter
+  = Sensor Nothing Nothing
+  $ STRadiancemeter 
+  $ RadianceMeter
+     { radianceMeterToWorld      = mempty
+     , radianceMeterShutterOpen  = 1
+     , radianceMeterShutterClose = 2
+     }
+  
+case_radiancemeter_toXML 
+  = actualRadianceMeter `assertElement` [xmlQQ|
+  <sensor type="radiancemeter">
+    <transform name="toWorld" />
+    <float name="shutterOpen"  value="1.0" />
+    <float name="shutterClose" value="2.0" />
   </sensor>
-  
   |]
 
-_case_orthographic_toXML 
-  = () `assertElement` [xmlQQ|
-  <sensor type="orthographic"> 
-    <transform name="toWorld">
-      <scale x="10" y="10"/>
-      <lookat origin="1, 1, 1" target="1, 2, 1" up="0, 0, 1"/> 
-    </transform>
+actualFluenceMeter 
+  = Sensor Nothing Nothing
+  $ STFluencemeter
+  $ FluenceMeter
+       { fluenceMeterToWorld      = mempty
+       , fluenceMeterShutterOpen  = 1
+       , fluenceMeterShutterClose = 2
+       }
+
+case_fluencemeter_toXML 
+  = actualFluenceMeter `assertElement` [xmlQQ|
+  <sensor type="fluencemeter">
+    <transform name="toWorld" />
+    <float name="shutterOpen"  value="1.0" />
+    <float name="shutterClose" value="2.0" />
   </sensor>
   |]
+  
+actualPerspectiveDist 
+  = Sensor Nothing Nothing
+  $ STPerspective_rdist
+  $ PerspectiveRDist
+     { perspectiveRDistToWorld      = mempty
+     , perspectiveRDistkc           = PolyTwoAndFour 1 2
+     , perspectiveRDistFocalLength  = 3
+     , perspectiveRDistFov          = 4
+     , perspectiveRDistFovAxis      = FOVTDiagonal
+     , perspectiveRDistShutterOpen  = 5
+     , perspectiveRDistShutterClose = 6
+     , perspectiveRDistNearClip     = 7
+     , perspectiveRDistFarClip      = 8
+     }
 
---TODO telecentric
---TODO spherical
-
-_case_irradiancemeter_toXML 
-  = () `assertElement` [xmlQQ|
-<sensor type="irradiancemeter">
-  <film type="mfilm"/>
-  <sampler type="independent">
-    <integer name="sampleCount" value="1024"/>
-  </sampler>
-</sensor>
-
+case_perspective_rdist_toXML 
+  = actualPerspectiveDist `assertElement` [xmlQQ|
+  <sensor type="perspective_rdist">
+    <transform name="toWorld" />
+    <string name="kc" value="1.0,2.0" />
+    <float name="focalLength" value="3.0" />
+    <float name="fov" value="4.0" />
+    <string name="fovAxis" value="diagonal" />
+    <float name="shutterOpen" value="5.0" />
+    <float name="shutterClose" value="6.0" />
+    <float name="nearClip" value="7.0" />
+    <float name="farClip" value="8.0" />
+  </sensor>
   |]
   
-_case_radiancemeter_toXML 
-  = () `assertElement` [xmlQQ|
-<sensor type="radiancemeter">
-  <transform name="toWorld">
-    <lookat origin="1,2,3" target="0,0,0"/>
-  </transform>
-  <film type="mfilm"/>
-  <sampler type="independent">
-    <integer name="sampleCount" value="1024"/>
-  </sampler>
-</sensor>
-  
-  |]
-  
-_case_fluencemeter_toXML
-  = () `assertElement` [xmlQQ|
-<sensor type="fluencemeter">
-  <transform name="toWorld">
-    <translate x="1" y="2" z="3"/>
-  </transform>
 
-  <film type="mfilm"/>
-
-  <sampler type="independent">
-    <integer name="sampleCount" value="1024"/>
-  </sampler>
-</sensor>
-
-  |]
+{-
   
 -- TODO perspective_rdist
 

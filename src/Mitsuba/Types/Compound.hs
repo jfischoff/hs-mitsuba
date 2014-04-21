@@ -1524,8 +1524,8 @@ instance ToElement FOVType where
 data Perspective = Perspective
    { perspectiveToWorld      :: Transform
    , perspectiveFocalLength  :: Double
-   , perspectiveFOV          :: Double
-   , perspectiveFOVAxis      :: FOVType
+   , perspectiveFov          :: Double
+   , perspectiveFovAxis      :: FOVType
    , perspectiveShutterOpen  :: Double
    , perspectiveShutterClose :: Double
    , perspectiveNearClip     :: Double
@@ -1549,7 +1549,19 @@ data Thinlens = Thinlens
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Thinlens
-instance ToElement Thinlens
+instance ToElement Thinlens where
+  toElement Thinlens {..} 
+    =  tag "thinlens" 
+    .> ("toWorld", thinlensToWorld)
+    .> ("aperatureRadius", thinlensAperatureRadius)
+    .> ("focusDistance", thinlensFocusDistance)
+    .> ("focalLength", show thinlensFocalLength ++ "mm")
+    .> ("fov", thinlensFOV)
+    .> ("fovaxis", thinlensFOVAxis)
+    .> ("shutterOpen", thinlensShutterOpen)
+    .> ("shutterClose", thinlensShutterClose)
+    .> ("nearClip", thinlensNearClip)
+    .> ("farClip", thinlensFarClip)
 
 data Orthographic = Orthographic
    { orthographicToWorld      :: Transform
@@ -1593,9 +1605,9 @@ instance Default IrradianceMeter
 instance ToElement IrradianceMeter   
    
 data RadianceMeter = RadianceMeter
-   { radianceToWorld      :: Transform
-   , radianceShutterOpen  :: Double
-   , radianceShutterClose :: Double
+   { radianceMeterToWorld      :: Transform
+   , radianceMeterShutterOpen  :: Double
+   , radianceMeterShutterClose :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default RadianceMeter
@@ -1632,10 +1644,10 @@ instance ToElement PolyTwoAndFour where
 
 data PerspectiveRDist = PerspectiveRDist
    { perspectiveRDistToWorld      :: Transform
-   , perspectiveRDistKC           :: PolyTwoAndFour
+   , perspectiveRDistkc           :: PolyTwoAndFour
    , perspectiveRDistFocalLength  :: Double
-   , perspectiveRDistFOV          :: Double
-   , perspectiveRDistFOVAxis      :: FOVType
+   , perspectiveRDistFov          :: Double
+   , perspectiveRDistFovAxis      :: FOVType
    , perspectiveRDistShutterOpen  :: Double
    , perspectiveRDistShutterClose :: Double
    , perspectiveRDistNearClip     :: Double
@@ -1645,20 +1657,52 @@ data PerspectiveRDist = PerspectiveRDist
 instance Default PerspectiveRDist
 instance ToElement PerspectiveRDist
 
-data Sensor
-   = SPerspective      Perspective
-   | SThinlens         Thinlens
-   | SOrthographic     Orthographic
-   | STelecentric      Telecentric
-   | SSpherical        Spherical
-   | SIrradianceMeter  IrradianceMeter
-   | SRadianceMeter    RadianceMeter
-   | SFluenceMeter     FluenceMeter
-   | SPerspectiveRDist PerspectiveRDist
+data SensorType
+   = STPerspective       Perspective
+   | STThinlens          Thinlens
+   | STOrthographic      Orthographic
+   | STTelecentric       Telecentric
+   | STSpherical         Spherical
+   | STIrradiancemeter   IrradianceMeter
+   | STRadiancemeter     RadianceMeter
+   | STFluencemeter      FluenceMeter
+   | STPerspective_rdist PerspectiveRDist
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
+instance Default SensorType
+instance ToElement SensorType where
+  toElement = \case 
+    STPerspective      x -> (tag "sensor" # ("type", "perspective"))
+                         `appendChildren` x
+    STThinlens         x -> (tag "sensor" # ("type", "thinlens"))
+                         `appendChildren` x
+    STOrthographic     x -> (tag "sensor" # ("type", "orthographic"))
+                         `appendChildren` x
+    STTelecentric      x -> (tag "sensor" # ("type", "telecentric"))
+                         `appendChildren` x
+    STSpherical        x -> (tag "sensor" # ("type", "spherical"))
+                         `appendChildren` x
+    STIrradiancemeter  x -> (tag "sensor" # ("type", "irradiancemeter"))
+                         `appendChildren` x
+    STRadiancemeter    x -> (tag "sensor" # ("type", "radiancemeter"))
+                         `appendChildren` x
+    STFluencemeter     x -> (tag "sensor" # ("type", "fluencemeter"))
+                         `appendChildren` x
+    STPerspective_rdist x -> (tag "sensor" # ("type", "perspective_rdist"))
+                         `appendChildren` x
+
+data Sensor = Sensor
+  { sensorFilm    :: Maybe Film
+  , sensorSampler :: Maybe Sampler
+  , sensorType    :: SensorType
+  } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   
 instance Default Sensor
-instance ToElement Sensor
+instance ToElement Sensor where
+  toElement Sensor {..} 
+    = toElement sensorType   
+    `addChildList` ((maybeToList $ fmap toElement sensorFilm) 
+                  ++ (maybeToList $ fmap toElement sensorSampler))
    
 data AmbientOcclusion = AmbientOcclusion 
    { ambientOcclusionShdingSamples :: Integer
@@ -1957,7 +2001,7 @@ data Sobol = Sobol
 instance Default Sobol
 instance ToElement Sobol
 
-data SampleGenerator
+data Sampler
    = SIndependent Independent
    | SStratified  Stratified
    | SLDSampler   LDSampler 
@@ -1966,8 +2010,8 @@ data SampleGenerator
    | SSobol       Sobol
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default SampleGenerator
-instance ToElement SampleGenerator
+instance Default Sampler
+instance ToElement Sampler
 
 data FileFormatType
    = Openexr
@@ -2237,20 +2281,20 @@ instance ToElement AnyAlias where
    toElement (AnyAlias x) = toElement x
       
 data SceneNodeData 
-   = SNShape             Shape
-   | SNBSDF              BSDF
-   | SNTexture           Texture
-   | SNSSS               Subsurface
-   | SNMedium Medium
-   | SNPhase             Phase
-   | SNVolume  Volume
-   | SNEmitter           Emitter
-   | SNSensor            Sensor
-   | SNIntegrator        Integrator
-   | SNSampleGenerator   SampleGenerator
-   | SNFilms             Film
-   | SInclude            Include
-   | SAlias              AnyAlias
+   = SNShape          Shape
+   | SNBSDF           BSDF
+   | SNTexture        Texture
+   | SNSSS            Subsurface
+   | SNMedium Medium  
+   | SNPhase          Phase
+   | SNVolume  Volume 
+   | SNEmitter        Emitter
+   | SNSensor         Sensor
+   | SNIntegrator     Integrator
+   | SNSampler        Sampler
+   | SNFilms          Film
+   | SInclude         Include
+   | SAlias           AnyAlias
    deriving (Show, Eq, Read, Ord, Generic, Typeable)
 
 instance Default SceneNodeData
