@@ -202,7 +202,7 @@ cubeExpected = [xmlQQ|
           <scale x="1.0" y="1.0" z="2.0"/>
         </transform>
 
-        <bool name="flipNormals" value="true" />
+        <boolean name="flipNormals" value="true" />
 
         <bsdf type="diffuse">
           <texture type="checkerboard" name="reflectance">
@@ -251,7 +251,7 @@ case_sphere_0_toXML
       
       <float name="radius" value="1.0"/>
       <point name="center" z="0.0" x="0.0" y="0.0"/>
-      <bool name="flipNormals" value="true"/>
+      <boolean name="flipNormals" value="true"/>
       
       <transform name="toWorld">
         <scale value="2.0" />
@@ -294,7 +294,7 @@ case_sphere_blackbody_toXML
       <point name="center" x="0.0" y="1.0" z="0.0"/> 
       <float name="radius" value="1.0"/>
       
-      <bool name="flipNormals" value="true" />
+      <boolean name="flipNormals" value="true" />
       <transform name="toWorld" />
       
       <bsdf type="diffuse">
@@ -317,7 +317,7 @@ case_cylinder_toXML
     <shape type="cylinder">
       <float name="radius" value="0.3"/> 
        
-      <bool name="flipNormals" value="true" />
+      <boolean name="flipNormals" value="true" />
       <transform name="toWorld" />
       
       <point name="p0" z="0.0" x="0.0" y="0.0" />
@@ -338,7 +338,7 @@ case_rectangle_0_toXML
   = actualRectange_0 `assertElement` [xmlQQ|
     <shape type="rectangle">
     
-    <bool name="flipNormals" value="true" />
+    <boolean name="flipNormals" value="true" />
     <transform name="toWorld" />
     
       <bsdf type="diffuse">
@@ -365,7 +365,7 @@ case_rectangle_1_toXML
       <translate x="0.0" y="1.0" z="0.2"/>
     </transform>
     
-    <bool name="flipNormals" value="true" />
+    <boolean name="flipNormals" value="true" />
     
     <bsdf type="diffuse">
       <spectrum name="reflectance" value="1.0" />
@@ -383,7 +383,7 @@ actualDisk0 = disk
 case_disk_0_toXML 
   = toXML actualDisk0 @?= [xmlQQ|
     <shape type="disk">
-      <bool name="flipNormals" value="true" />
+      <boolean name="flipNormals" value="true" />
       <transform name="toWorld" />
       
       <bsdf type="diffuse">
@@ -414,7 +414,7 @@ case_disk_1_toXML
       <float name="samplingWeight" value="1.0" />
     </emitter>
     
-    <bool name="flipNormals" value="true" />
+    <boolean name="flipNormals" value="true" />
     
     <bsdf type="diffuse">
       <spectrum name="reflectance" value="1.0" />
@@ -431,9 +431,9 @@ case_obj_0_toXML
     <shape type="obj">
        <string name="filename" value="myShape.obj"/>
        
-       <bool name="flipNormals"     value="false" />
-       <bool name="flipTexCoords"   value="false" />
-       <bool name="faceNormals"     value="false" />
+       <boolean name="flipNormals"     value="false" />
+       <boolean name="flipTexCoords"   value="false" />
+       <boolean name="faceNormals"     value="false" />
        <float name="maxSmoothAngle" value="0.0"   />
        
        <bsdf type="diffuse">
@@ -472,14 +472,14 @@ case_obj_1_toXML
       <string name="extIOR" value="water"/>
       <spectrum name="specularReflectance" value="2.0"/>
       <float name="alpha" value="1.0"/>
-      <bool name="nonlinear" value="true"/>
+      <boolean name="nonlinear" value="true"/>
       <rgb name="diffuseReflectance" value="0.200, 0.600, 0.300"/>
     </bsdf>
-    <bool name="faceNormals" value="false"/>
+    <boolean name="faceNormals" value="false"/>
     <transform name="toWorld"/>
-    <bool name="flipTexCoords" value="false"/>
+    <boolean name="flipTexCoords" value="false"/>
     <float name="maxSmoothAngle" value="0.0"/>
-    <bool name="flipNormals" value="false"/>
+    <boolean name="flipNormals" value="false"/>
     <string name="filename" value="myShape.obj"/>
   </shape>
   |]
@@ -496,8 +496,8 @@ case_obj_2_toXML
   = actualObj2 `assertElement` [xmlQQ|
   <shape type="obj">
     <transform name="toWorld"/>
-    <bool name="faceNormals" value="false"/>
-    <bool name="flipTexCoords" value="false"/>
+    <boolean name="faceNormals" value="false"/>
+    <boolean name="flipTexCoords" value="false"/>
     <float name="maxSmoothAngle" value="0.0"/>
     <string name="filename" value="myShape.obj"/> 
     
@@ -515,7 +515,7 @@ case_obj_2_toXML
       <texture name="specularTransmittance" type="vertexcolors" />
     </bsdf> 
     
-    <bool name="flipNormals" value="false"/>
+    <boolean name="flipNormals" value="false"/>
   </shape>
   
   
@@ -536,9 +536,9 @@ case_PLY_toXML
         <string name="filename" value="myShape.ply"/> 
         
         <float name="maxSmoothAngle" value="0.0"/>
-        <bool name="srgb" value="false"/>
-        <bool name="flipNormals" value="false"/>
-        <bool name="faceNormals" value="true"/>
+        <boolean name="srgb" value="false"/>
+        <boolean name="flipNormals" value="false"/>
+        <boolean name="faceNormals" value="true"/>
       </shape>
 
   |]
@@ -555,8 +555,8 @@ case_Serialized_toXML
       </bsdf>
       
       <string name="filename" value="myShape.serialized"/>
-      <bool name="faceNormals" value="true" />
-      <bool name="flipNormals" value="false" />
+      <boolean name="faceNormals" value="true" />
+      <boolean name="flipNormals" value="false" />
       <float name="maxSmoothAngle" value="0.0"/>
       <integer name="shapeIndex" value="0" />
     </shape>
@@ -574,14 +574,14 @@ case_shapegroup_nested_toXML
       <bsdf type="diffuse">
         <spectrum name="reflectance" value="1.0"/>
       </bsdf>
-      <bool name="flipNormals" value="false"/>
+      <boolean name="flipNormals" value="false"/>
     </shape>
     <shape type="cube">
       <transform name="toWorld"/>
       <bsdf type="diffuse">
         <spectrum name="reflectance" value="1.0"/>
       </bsdf>
-      <bool name="flipNormals" value="false"/>
+      <boolean name="flipNormals" value="false"/>
     </shape>
   </shape>
 
@@ -674,8 +674,8 @@ case_heightfield_toXML
           <float name="vscale" value="0.0"/>
         </texture>
         
-        <bool name="shadingNormals" value="true" />
-        <bool name="flipNormals"    value="false" />
+        <boolean name="shadingNormals" value="true" />
+        <boolean name="flipNormals"    value="false" />
         
         <transform name="toWorld"/>
         
@@ -733,7 +733,7 @@ case_diffuse_1_toXML
       <string name="wrapMode" value="repeat" />
       <string name="filterType" value="trilinear" />
       <float  name="maxAnisotropy" value="0.0" />
-      <bool   name="cache" value="false" />
+      <boolean   name="cache" value="false" />
       <float  name="uoffset" value="0.5" />
       <float  name="voffset" value="1.0" />  
 
@@ -765,7 +765,7 @@ case_roughdiffuse_toXML
       <bsdf type="roughdiffuse">
         <rgb name="reflectance" value="1.000, 0.500, 0.000" />
         <rgb name="alpha"       value="0.100, 0.050, 0.000" />
-        <bool name="useFastApprox" value="true" />
+        <boolean name="useFastApprox" value="true" />
       </bsdf>
   |]
 
@@ -879,7 +879,7 @@ case_roughdielectric_1_toXML
       <string name="wrapMode" value="repeat" />
       <string name="filterType" value="trilinear" />
       <float  name="maxAnisotropy" value="0.0" />
-      <bool   name="cache" value="false" />
+      <boolean   name="cache" value="false" />
       <float  name="uoffset" value="0.5" />
       <float  name="voffset" value="1.0" />  
 
@@ -982,7 +982,7 @@ case_plastic_toXML
     <srgb name="diffuseReflectance" value="#18455c"/> 
     <float name="intIOR" value="1.9"/>
     <float name="extIOR" value="1.0"/>
-    <bool name="nonlinear" value="false" />
+    <boolean name="nonlinear" value="false" />
     <texture name="specularReflectance" type="vertexcolors" />
   </bsdf>
   |]
@@ -1036,7 +1036,7 @@ case_roughplastic_toXML
         <string name="wrapMode" value="repeat" />
         <string name="filterType" value="trilinear" />
         <float  name="maxAnisotropy" value="0.0" />
-        <bool   name="cache" value="false" />
+        <boolean   name="cache" value="false" />
         <float  name="uoffset" value="0.5" />
         <float  name="voffset" value="1.0" />  
         <float name="uscale" value="1.5" />
@@ -1045,7 +1045,7 @@ case_roughplastic_toXML
       </texture>
       <float name="scale" value="0.6"/> 
     </texture>
-    <bool name="nonlinear" value="false" />
+    <boolean name="nonlinear" value="false" />
   </bsdf>
   |]
 
@@ -1408,7 +1408,7 @@ case_bitmap_toXML
           <string name="channel" value="r"/>
           <float name="voffset" value="4.0"/>
           <float name="maxAnisotropy" value="2.0"/>
-          <bool name="cache" value="true"/>
+          <boolean name="cache" value="true"/>
           <string name="wrapMode" value="repeat"/>
           <float name="uoffset" value="3.0"/>
           <float name="vscale" value="6.0"/>
@@ -1519,7 +1519,7 @@ case_heterogeneous_toXML
   <string name="method" value="simpson"/>
   <volume name="density" type="gridvolume">
     <point name="max" z="0.0" x="0.0" y="0.0"/>
-    <bool name="sendData" value="true"/>
+    <boolean name="sendData" value="true"/>
     <point name="min" z="0.0" x="0.0" y="0.0"/>
     <string name="filename" value="frame_0150.vol"/>
     <transform name="toWorld"/>
@@ -1631,7 +1631,7 @@ case_gridvolume_toXML
   = actualGridVolume `assertElement` [xmlQQ|
       <volume type="gridvolume">
         <point name="max" z="0.0" x="0.0" y="0.0"/>
-        <bool name="sendData" value="true"/>
+        <boolean name="sendData" value="true"/>
         <point name="min" z="0.0" x="0.0" y="0.0"/>
         <string name="filename" value="frame_0150.vol"/>
         <transform name="toWorld"/>
@@ -1659,48 +1659,306 @@ case_volcache_toXML
     </volume>
   |]
 
-{-
-
--- TODO point light
-
-_case_area_toXML
-  = () `assertElement` [xmlQQ|
-    <shape type="sphere"> 
-      <emitter type="area">
-        <spectrum name="radiance" value="1"/>
-      </emitter>
-    </shape>
-  |]
-
-_case_spot_toXML 
-  = () `assertElement` [xmlQQ|
-  <emitter type="spot">
-    <transform name="toWorld">
-      <lookat origin="1, 1, 1" target="1, 2, 1"/> 
-    </transform>
-  </emitter>
-  |]
-  
--- TODO 
---__case_directional_toXML 
--- TODo
--- __case_collimated_toXML 
-
--- TODO make another with more params
-_case_sky_toXML_0
-  = () `assertElement` [xmlQQ|
-    <emitter type="sky"> 
-      <transform name="toWorld">
-        <rotate x="1" angle="90"/>
-      </transform>
+actualPointLight 
+  = EPoint
+  $ PointLight
+     { pointLightToWorld        = mempty
+     , pointLightPosition       = Point 1 2 3
+     , pointLightIntensity      = SUniform 1.0
+     , pointLightSamplingWeight = 2.0
+     }
+    
+case_pointlight_toXML 
+  = actualPointLight `assertElement` [xmlQQ|
+    <emitter type="point">
+      <spectrum name="intensity" value="1.0"/>
+      <float name="samplingWeight" value="2.0"/>
+      <transform name="toWorld"/>
+      <point name="position" z="3.0" x="1.0" y="2.0"/>
     </emitter>
   |]
 
--- TODO sun
--- TODO sunsky
--- TODO envmap
--- TODO constant
+actualAreaLight
+  = SShapeLeaf 
+  $ ShapeLeaf 
+     { shapeLeafLeaf       
+         = Left 
+         $ SimpleShapeLeaf
+            (STCube def)
+            (CRef $ Ref "material")
+     , shapeLeafToWorld    = mempty
+     , shapeLeafMediumPair = Nothing
+     , shapeLeafEmitter    
+        = Just 
+        $ CNested 
+        $ EArea
+        $ AreaLight 
+            { areaLightRadiance       = SUniform 1.0
+            , areaLightSamplingWeight = 2.0
+            }
+      }
 
+case_area_toXML
+  = actualAreaLight `assertElement` [xmlQQ|
+    <shape type="cube"> 
+      <transform name="toWorld"/>
+      <ref id="material"/>
+      <emitter type="area">
+        <spectrum name="radiance" value="1.0"/>
+        <float name="samplingWeight" value="2.0"/>
+      </emitter>
+      <boolean name="flipNormals" value="false"/>
+    </shape>
+  |]
+
+actualSpot 
+  = ESpot
+  $ SpotLight
+       { spotLightToWorld        
+            = TRegular
+            $ RegularTransform 
+                [ TCLookat 
+                    $ Lookat 
+                        { origin = Point 1 1 1
+                        , target = Point 1 2 1
+                        , up     = Vector 1 0 0
+                        }
+                ]
+       , spotLightIntensity      = SUniform 1.0
+       , spotLightCutoffAngle    = 2.0
+       , spotLightBeamWidth      = 3.0
+       , spotLightTexture        = TVertexcolors
+       , spotLightSamplingWeight = 4.0
+       }
+
+case_spot_toXML 
+  = actualSpot `assertElement` [xmlQQ|
+  <emitter type="spot">
+    <transform name="toWorld">
+      <lookat origin="1.0, 1.0, 1.0" up="1.0, 0.0, 0.0" target="1.0, 2.0, 1.0"/> 
+    </transform>
+    
+    <float name="cutoffAngle" value="2.0"/>
+    <texture name="texture" type="vertexcolors"/>
+    <spectrum name="intensity" value="1.0"/>
+    <float name="beamWidth" value="3.0"/>
+    <float name="samplingWeight" value="4.0"/>
+  </emitter>
+  |]
+
+actualDirectionLight 
+  = EDirectional
+  $ DirectionalLight
+     { directionalLightToWorld        = mempty
+     , directionalLightDirection      = Vector 1 0 0
+     , directionalLightIrradiance     = SUniform 1.0
+     , directionalLightSamplingWeight = 2.0
+     }
+
+case_directional_toXML 
+  = actualDirectionLight `assertElement` [xmlQQ|
+      <emitter type="directional">
+          <transform name="toWorld" />
+          <vector name="direction" x="1.0" y="0.0" z="0.0" />
+          <spectrum name="irradiance" value="1.0" />
+          <float name="samplingWeight" value="2.0" />
+      </emitter>
+  |]
+
+actualCollimated 
+  = ECollimated
+  $ Collimated 
+      { collimatedToWorld = mempty
+      , collimatedPower   = SUniform 1.0
+      , collimatedSamplingWeight = 0.0
+      }
+
+case_collimated_toXML 
+  = actualCollimated `assertElement` [xmlQQ|
+      <emitter type="collimated">
+          <transform name="toWorld" />
+          <spectrum name="power" value="1.0" />
+          <float name="samplingWeight" value="0.0" />
+      </emitter>
+      
+  |]
+
+actualSky 
+  = ESky
+  $ Sky 
+      { skyTurbidity = 1.0
+      , skyAlbedo    = SUniform 2.0
+      , skyYear      = 3
+      , skyMonth     = 4
+      , skyDay       = 5
+      , skyHour      = 6
+      , skyMinute    = 7
+      , skySecond    = 8
+      , skyLatitude  = 9.0
+      , skyLongitude = 10.0
+      , skyTimezone  = 11.0
+      , skySunDirection = Vector 
+            { vectorX = 12.0
+            , vectorY = 13.0
+            , vectorZ = 14.0
+            }
+      , skyStretch        = 15.0
+      , skyResolution     = 16
+      , skyScale          = 17.0
+      , skySamplingWeight = 18.0
+      , skyToWorld        = mempty
+      }
+
+case_sky_toXML 
+  = actualSky `assertElement` [xmlQQ|
+<emitter type="sky">
+  <float name="turbidity" value="1.0"/>
+  <spectrum name="albedo" value="2.0"/>
+  <integer name="year" value="3"/>
+  <integer name="month" value="4"/>
+  <integer name="day" value="5"/>
+  <float name="hour" value="6.0"/>
+  <float name="minute" value="7.0"/>
+  <float name="second" value="8.0"/>
+  <float name="latitude" value="9.0"/>
+  <float name="longitude" value="10.0"/>
+  <float name="timezone" value="11.0"/>
+  <vector name="sunDirection" x="12.0" y="13.0" z="14.0"/>
+  <float name="stretch" value="15.0"/>
+  <integer name="resolution" value="16"/>
+  <float name="scale" value="17.0"/>
+  <float name="samplingWeight" value="18.0"/>
+  <transform name="toWorld" />
+</emitter>
+  |]
+
+actualSun 
+  = ESun 
+  $ Sun
+       { sunTurbidity    = 1.0
+       , sunYear         = 2
+       , sunMonth        = 3
+       , sunDay          = 4
+       , sunHour         = 5
+       , sunMinute       = 6
+       , sunSecond       = 7
+       , sunLatitude     = 8
+       , sunLongitude    = 9
+       , sunTimezone     = 10
+       , sunResolution   = 11
+       , sunScale        = 12
+       , sunRadiusScale  = 13
+       , sunSamplingWeight = 14
+       }
+
+case_sun_toXML 
+  = actualSun `assertElement` [xmlQQ|
+    <emitter type="sun">
+      <float name="turbidity" value="1.0"/>
+      <integer name="year" value="2"/>
+      <integer name="month" value="3"/>
+      <integer name="day" value="4"/>
+      <float name="hour" value="5.0"/>
+      <float name="minute" value="6.0"/>
+      <float name="second" value="7.0"/>
+      <float name="latitude" value="8.0"/>
+      <float name="longitude" value="9.0"/>
+      <float name="timezone" value="10.0"/>
+      <integer name="resolution" value="11"/>
+      <float name="scale" value="12.0"/>
+      <float name="radiusScale" value="13.0"/>
+      <float name="samplingWeight" value="14.0"/>
+    </emitter>
+  |]
+  
+actualSunSky 
+  = ESunsky
+  $ Sunsky 
+      { sunskyTurbidity       = 1.0
+       , sunskyAlbedo         = SUniform 2.0
+       , sunskyYear           = 3
+       , sunskyMonth          = 4
+       , sunskyDay            = 5
+       , sunskyHour           = 6
+       , sunskyMinute         = 7
+       , sunskySecond         = 8
+       , sunskyLatitude       = 9
+       , sunskyLongitude      = 10
+       , sunskyTimezone       = 11
+       , sunskySunDirection   = Vector 
+             { vectorX = 12.0
+             , vectorY = 13.0
+             , vectorZ = 14.0
+             }
+       , sunskyStretch        = 15
+       , sunskyResolution     = 16
+       , sunskySunScale       = 17
+       , sunskySkyScale       = 18
+       , sunskySunRadiusScale = 19
+       }
+       
+case_sunsky_toXML 
+  = actualSunSky `assertElement` [xmlQQ|
+      <emitter type="sunsky">
+        <float name="turbidity" value="1.0"/>
+        <spectrum name="albedo" value="2.0"/>
+        <integer name="year" value="3"/>
+        <integer name="month" value="4"/>
+        <integer name="day" value="5"/>
+        <float name="hour" value="6.0"/>
+        <float name="minute" value="7.0"/>
+        <float name="second" value="8.0"/>
+        <float name="latitude" value="9.0"/>
+        <float name="longitude" value="10.0"/>
+        <float name="timezone" value="11.0"/>
+        <vector name="sunDirection" x="12.0" y="13.0" z="14.0"/>
+        <float name="stretch" value="15.0"/>
+        <integer name="resolution" value="16"/>
+        <float name="sunScale" value="17.0"/>
+        <float name="skyScale" value="18.0"/>
+        <float name="sunRadiusScale" value="19.0"/>
+      </emitter>
+  |]
+
+actualEnvmap 
+  = EEnvmap
+  $ Envmap
+     { envmapFilename       = "filepath"
+     , envmapScale          = 1
+     , envmapToWorld        = mempty
+     , envmapGamma          = 2
+     , envmapCache          = True
+     , envmapSamplingWeight = 3
+     }
+
+case_envmap_toXML 
+  = actualEnvmap `assertElement` [xmlQQ|
+    <emitter type="envmap">
+      <string name="filename" value="filepath" />
+      <float name="scale" value="1.0" />
+      <transform name="toWorld" />
+      <float name="gamma" value="2.0" />
+      <boolean name="cache" value="true" />
+      <float name="samplingWeight" value="3.0" />
+    </emitter>
+  |]
+
+actualConstantEmitter 
+  = EConstant
+  $ Constant 
+       { constantRadiance       = SUniform 1.0
+       , constantSamplingWeight = 2.0
+       }
+
+case_constant_toXML 
+  = actualConstantEmitter `assertElement` [xmlQQ|
+      <emitter type="constant">
+        <spectrum name="radiance" value="1.0" />
+        <float name="samplingWeight" value="2.0" />
+      </emitter>
+  |]
+
+{-
 -- TODO more perspective tests
 _case_perspective_toXML 
   = () `assertElement` [xmlQQ|

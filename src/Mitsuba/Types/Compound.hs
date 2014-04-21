@@ -945,7 +945,7 @@ instance ToElement SpotLight
 
 data DirectionalLight = DirectionalLight
    { directionalLightToWorld        :: Transform
-   , directionalLightVector         :: Vector
+   , directionalLightDirection      :: Vector
    , directionalLightIrradiance     :: Spectrum
    , directionalLightSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -966,7 +966,11 @@ data Sky = Sky
    { skyTurbidity      :: Double
    , skyAlbedo         :: Spectrum
    , skyYear           :: Integer
-   , skyMinute         :: Integer
+   , skyMonth          :: Integer
+   , skyDay            :: Integer
+   , skyHour           :: Double
+   , skyMinute         :: Double
+   , skySecond         :: Double
    , skyLatitude       :: Double
    , skyLongitude      :: Double
    , skyTimezone       :: Double
@@ -990,12 +994,12 @@ data Sun = Sun
    , sunMinute       :: Double
    , sunSecond       :: Double
    , sunLatitude     :: Double
-   , sunLongitute    :: Double
+   , sunLongitude    :: Double
    , sunTimezone     :: Double
    , sunResolution   :: Integer
    , sunScale        :: Double
    , sunRadiusScale  :: Double
-   , sunSampleWeight :: Double
+   , sunSamplingWeight :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default Sun   
@@ -1013,7 +1017,7 @@ data Sunsky = Sunsky
    , sunskyLatitude       :: Double
    , sunskyLongitude      :: Double
    , sunskyTimezone       :: Double
-   , sunskySunDirection   :: Double
+   , sunskySunDirection   :: Vector
    , sunskyStretch        :: Double
    , sunskyResolution     :: Integer
    , sunskySunScale       :: Double
@@ -1049,9 +1053,10 @@ data Emitter
    | EArea             AreaLight
    | ESpot             SpotLight
    | EDirectional      DirectionalLight
+   | ECollimated       Collimated
    | ESky              Sky
    | ESun              Sun
-   | ESunSky           Sunsky
+   | ESunsky           Sunsky
    | EEnvmap           Envmap
    | EConstant         Constant
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)

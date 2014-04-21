@@ -68,7 +68,7 @@ instance ToElement Double where
    toElement = primitive "float" . T.pack . show
 
 instance ToElement Bool where
-   toElement = primitive "bool" . T.toLower . T.pack . show
+   toElement = primitive "boolean" . T.toLower . T.pack . show
 
 instance ToElement Element where
    toElement = id
