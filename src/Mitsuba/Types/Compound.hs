@@ -1931,6 +1931,61 @@ data IRRCache = IRRCache
 instance Default IRRCache
 instance ToElement IRRCache
 
+data FieldType 
+  = FTPosition
+  | FTRelPosition
+  | FTDistance
+  | FTGeoNormal
+  | FTShNormal
+  | FTUV
+  | FTAlbedo
+  | FTShapeIndex
+  | FTPrimIndex
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+  
+instance Default FieldType
+instance ToElement FieldType where
+  toElement x = toElement $ case x of
+    FTPosition    -> "position"
+    FTRelPosition -> "relPosition"
+    FTDistance    -> "distance"
+    FTGeoNormal   -> "geoNormal"
+    FTShNormal    -> "shNormal"
+    FTUV          -> "uv"
+    FTAlbedo      -> "albedo"
+    FTShapeIndex  -> "shapeIndex"
+    FTPrimIndex   -> "primIndex"
+
+data Field = Field
+  { fieldField     :: FieldType
+  , fieldUndefined :: Luminance
+  } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance Default Field
+instance ToElement Field
+
+data SamplingIntegrator 
+  = SIField Field
+  | SIAo     AmbientOcclusion
+  | SIDirect Direct
+  | SIPath Path
+  | SIVolpath VolPath
+  | SIVolpath_simple VolPathSimple
+  | SIIrrcache IRRCache 
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+  
+instance Default SamplingIntegrator
+instance ToElement SamplingIntegrator where
+  toElement = set elementTagL "integrator" . defaultGeneric
+
+newtype MultiChannel 
+  = MultiChannel { unMultiChannel :: [SamplingIntegrator] }
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+
+instance Default MultiChannel
+instance ToElement MultiChannel where
+  toElement (MultiChannel xs) = addChildList (tag "multichannel") xs
+
 data Integrator 
    = IAo            AmbientOcclusion 
    | IDirect        Direct
@@ -1948,6 +2003,7 @@ data Integrator
    | IAdaptive      Adaptive
    | IVpl           VPL
    | IIrrcache      IRRCache
+   | IMultichannel  MultiChannel
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Integrator
@@ -2003,7 +2059,7 @@ instance ToElement Sobol
 data Sampler
    = SIndependent Independent
    | SStratified  Stratified
-   | SLDSampler   LDSampler 
+   | SLdsampler   LDSampler 
    | SHalton      Halton
    | SHammersley  Hammersley
    | SSobol       Sobol

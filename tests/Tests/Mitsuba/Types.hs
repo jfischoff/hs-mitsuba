@@ -2580,20 +2580,119 @@ case_irrcache_toXML
      </integrator>
   |]
 
+actualField = SIField $ Field FTPosition $ UniformLuminance 1
+
+case_field_toXML 
+  = actualField `assertElement` [xmlQQ|
+    <integrator type="field">
+      <string name="field"    value="position"/>
+      <float name="undefined" value="1.0"     />
+    </integrator>
+  |]
+
+actualMultichannel 
+  = IMultichannel
+  $ MultiChannel [SIField $ Field FTPosition $ UniformLuminance 1]
+  
+  
+case_multichannel_toXML
+  = actualMultichannel `assertElement` [xmlQQ|
+    <integrator type="multichannel">
+      <integrator type="field">
+        <string name="field" value="position"/> 
+        <float name="undefined" value="1.0"     />
+      </integrator>
+    </integrator>
+  |]
+
+actualIndependent = SIndependent $ Independent 
+  { independentSampleCount = 1
+  }
+
+case_independent 
+  = actualIndependent `assertElement` [xmlQQ|
+      <sampler type="independent">
+        <integer name="sampleCount" value="1" />
+      </sampler>
+  |]
+
+actualStratified 
+  = SStratified
+  $ Stratified
+      { stratifiedSampleCount = 1
+      , stratifiedDimension   = 2
+      }
+
+case_stratified 
+  = actualStratified `assertElement` [xmlQQ|
+      <sampler type="stratified">
+        <integer name="sampleCount" value="1" />
+        <integer name="dimension"   value="2" />
+      </sampler>
+  |]
+
+actualLdsampler 
+  = SLdsampler
+  $ LDSampler
+     { ldSamplerSampleCount = 1
+     , ldSamplerDimension   = 2
+     }
+
+case_ldsampler
+   = actualLdsampler `assertElement` [xmlQQ|
+       <sampler type="ldsampler">
+         <integer name="sampleCount" value="1" />
+         <integer name="dimension"   value="2" />
+       </sampler>
+   |]
+
+actualHalton 
+  = SHalton
+  $ Halton
+     { haltonSampleCount = 1
+     , haltonScramble    = 2
+     }
+
+case_halton 
+  = actualHalton `assertElement` [xmlQQ|
+    <sampler type="halton">
+      <integer name="sampleCount" value="1" />
+      <integer name="scramble"    value="2" />
+    </sampler>
+  |]
+  
+actualHammersley 
+  = SHammersley
+  $ Hammersley
+     { hammersleySampleCount = 1
+     , hammersleyScramble    = 2
+     }
+
+case_Hammersley 
+   = actualHammersley `assertElement` [xmlQQ|
+     <sampler type="hammersley">
+       <integer name="sampleCount" value="1" />
+       <integer name="scramble"    value="2" />
+     </sampler>
+   |]
+   
+actualSobol
+   = SSobol
+   $ Sobol
+      { sobolSampleCount = 1
+      , sobolScramble    = 2
+      }
+
+case_Sobol
+    = actualSobol `assertElement` [xmlQQ|
+      <sampler type="sobol">
+        <integer name="sampleCount" value="1" />
+        <integer name="scramble"    value="2" />
+      </sampler>
+    |]
+
+
 {-
-
--- TODO independent
--- sampleCount integer Number of samples per pixel (Default: 4)
-
--- TODO stratified 
--- sampleCount
--- dimension
--- Type
--- integer
--- integer
--- Description
--- Number of samples per pixel; should be a perfect square (e.g. 1, 4, 9, 16, 25, etc.), or it will be rounded up to the next one (Default: 4)
--- Effective dimension, up to which stratified samples are pro- vided. The number here is to be interpreted as the number of subsequent 1D or 2D sample requests that can be satis- fied using “good” samples. Higher high values increase both storageandcomputationalcosts. (Default:4)
 
 
 8.11.3. Lowdiscrepancysampler(ldsampler)
