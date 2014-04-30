@@ -1743,7 +1743,7 @@ instance ToElement Direct
    
 data Path = Path
    { pathMaxDepth      :: Integer
-   , pathRRDepth       :: Integer
+   , pathRrDepth       :: Integer
    , pathStrictNormals :: NormalStrictness
    , pathHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -1753,7 +1753,7 @@ instance ToElement Path
 
 data VolPathSimple = VolPathSimple
    { volPathSimpleMaxDepth      :: Integer
-   , volPathSimpleRRDepth       :: Integer
+   , volPathSimpleRrDepth       :: Integer
    , volPathSimpleStrictNormals :: NormalStrictness
    , volPathSimpleHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -1763,7 +1763,7 @@ instance ToElement VolPathSimple
 
 data VolPath = VolPath
    { volPathMaxDepth      :: Integer
-   , volPathRRDepth       :: Integer
+   , volPathRrDepth       :: Integer
    , volPathStrictNormals :: NormalStrictness
    , volPathHideEmitters  :: Visibility
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -1793,7 +1793,7 @@ data BDPT = BDPT
    { bdptMaxDepth     :: Integer
    , bdptLightImage   :: PathConnectedness
    , bdptSampleDirect :: DirectSampling
-   , bdptRRDepth      :: Integer
+   , bdptRrDepth      :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default BDPT
@@ -1805,13 +1805,13 @@ data PhotonMapper = PhotonMapper
    , photonMapperMaxDepth            :: Integer
    , photonMapperGlobalPhotons       :: Integer
    , photonMapperCausticPhotons      :: Integer
-   , photonMapperVolumenPhotons      :: Integer
+   , photonMapperVolumePhotons       :: Integer
    , photonMapperGlobalLookupRadius  :: Double
    , photonMapperCausticLookupRadius :: Double
    , photonMapperLookupSize          :: Integer
    , photonMapperGranularity         :: Integer
    , photonMapperHideEmitters        :: Bool
-   , photonMapperRRDepth             :: Integer
+   , photonMapperRrDepth             :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default PhotonMapper
@@ -1823,7 +1823,7 @@ data PPM = PPM
    , ppmInitialRadius :: Double
    , ppmAlpha         :: Double
    , ppmGranularity   :: Integer
-   , ppmRRDepth       :: Integer
+   , ppmRrDepth       :: Integer
    , ppmMaxPasses     :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
@@ -1832,11 +1832,11 @@ instance ToElement PPM
 
 data SPPM = SPPM
    { sppmMaxDepth      :: Integer
-   , sppmphotonCount   :: Integer
+   , sppmPhotonCount   :: Integer
    , sppmInitialRadius :: Double
    , sppmAlpha         :: Double
    , sppmGranularity   :: Integer
-   , sppmRRDepth       :: Integer
+   , sppmRrDepth       :: Integer
    , sppmMaxPasses     :: Integer
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
@@ -1847,10 +1847,10 @@ data PSSMLT = PSSMLT
    { pssmltBidirectional    :: Bool
    , pssmltMaxDepth         :: Integer
    , pssmltDirectSamples    :: Integer
-   , pssmltRRDepth          :: Integer
+   , pssmltRrDepth          :: Integer
    , pssmltLuminanceSamples :: Integer
    , pssmltTwoStage         :: Bool
-   , pssmltPLarge           :: Double
+   , pssmltPlarge           :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default PSSMLT
@@ -1863,11 +1863,10 @@ data MLT = MLT
    , mltTwoStage               :: Bool
    , mltBidirectionalMutation  :: Bool
    , mltLensPerturbation       :: Bool
-   , mltMultiChainLens         :: Bool
-   , mltMultiChainMultiChain   :: Bool
-   , mltMultiChainCaustic      :: Bool
-   , mltMultiChainManifold     :: Bool
-   , mltMultiChainPerturbation :: Bool
+   , mltMultiChainPertubation  :: Bool
+   , mltCausticPertubation     :: Bool
+   , mltManifoldPertubation    :: Bool
+   , mltLambda                 :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default MLT
@@ -1891,7 +1890,7 @@ instance ToElement ERPT
 
 data PTracer = PTracer
    { ptracerMaxDepth    :: Integer
-   , ptracerRRDepth     :: Integer
+   , ptracerRrDepth     :: Integer
    , ptracerGranularity :: Integer
    , ptracerBruteForce  :: Bool
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -1908,20 +1907,20 @@ data Adaptive = Adaptive
 instance Default Adaptive
 instance ToElement Adaptive
 
-data VP1 = VP1 
-   { vp1MaxDepth            :: Integer
-   , vp1ShadowMapResolution :: Integer
-   , vp1Clamping            :: Double
+data VPL = VPL 
+   { vplMaxDepth            :: Integer
+   , vplShadowMapResolution :: Integer
+   , vplClamping            :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default VP1
-instance ToElement VP1
+instance Default VPL
+instance ToElement VPL
 
 data IRRCache = IRRCache 
    { irrCacheResolution        :: Integer
    , irrCacheQuality           :: Double
    , irrCacheGradients         :: Bool
-   , irrCacheClampNeighor      :: Bool
+   , irrCacheClampNeighbor      :: Bool
    , irrCacheClampScreen       :: Bool
    , irrCacheOverture          :: Bool
    , irrCacheQualityAdjustment :: Double
@@ -1936,19 +1935,19 @@ data Integrator
    = IAo            AmbientOcclusion 
    | IDirect        Direct
    | IPath          Path
-   | IVolPathSimple VolPathSimple
-   | IVolPath       VolPath
-   | IBDPT          BDPT
-   | IPhotonMapper  PhotonMapper
-   | IPPM           PPM
-   | ISPPM          SPPM
-   | IPSSMLT        PSSMLT
-   | IMLT           MLT
-   | IERPT          ERPT
-   | IPTracer       PTracer
+   | IVolpath_simple VolPathSimple
+   | IVolpath       VolPath
+   | IBdpt          BDPT
+   | IPhotonmapper  PhotonMapper
+   | IPpm           PPM
+   | ISppm          SPPM
+   | IPssmlt        PSSMLT
+   | IMlt           MLT
+   | IErpt          ERPT
+   | IPtracer       PTracer
    | IAdaptive      Adaptive
-   | IVP1           VP1
-   | IIRRCache      IRRCache
+   | IVpl           VPL
+   | IIrrcache      IRRCache
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Integrator

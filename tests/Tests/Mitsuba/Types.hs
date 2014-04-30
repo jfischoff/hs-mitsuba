@@ -2219,175 +2219,368 @@ case_ao_toXML
       </integrator>
   |]
 
+actualDirect 
+  = IDirect
+  $ Direct
+     { directShadingSamples = 1
+     , directEmitterSamples = 2
+     , directBsdfSamples    = 3
+     , directStrictNormals  = Strict
+     , directHideEmitters   = Visible
+     }
 
+case_direct_toXML
+  = actualDirect `assertElement` [xmlQQ|
+    <integrator type="direct">
+      <integer name="shadingSamples" value="1" />
+      <integer name="emitterSamples" value="2" />
+      <integer name="bsdfSamples" value="3" />
+      <boolean name="strictNormals" value="true" />
+      <boolean name="hideEmitters" value="true" />
+    </integrator>
+  
+  |]
+
+
+actualPath 
+  = IPath
+  $ Path
+      { pathMaxDepth      = 1
+      , pathRrDepth       = 2
+      , pathStrictNormals = Strict
+      , pathHideEmitters  = Visible
+      }
+
+case_path_toXML 
+  = actualPath `assertElement` [xmlQQ|
+    <integrator type="path">
+      <integer name="maxDepth" value="1" />
+      <integer name="rrDepth" value="2" />
+      <boolean name="strictNormals" value="true" />
+      <boolean name="hideEmitters" value="true" />
+    </integrator>
+  
+  |]
+
+actualVolPathSimple 
+  = IVolpath_simple
+  $ VolPathSimple
+     { volPathSimpleMaxDepth      = 1
+     , volPathSimpleRrDepth       = 2
+     , volPathSimpleStrictNormals = Strict
+     , volPathSimpleHideEmitters  = Visible
+     }
+
+case_volpath_simple_toXML 
+  = actualVolPathSimple `assertElement` [xmlQQ|
+  <integrator type="volpath_simple">
+    <integer name="maxDepth" value="1" />
+    <integer name="rrDepth" value="2" />
+    <boolean name="strictNormals" value="true" />
+    <boolean name="hideEmitters" value="true" />
+  </integrator>
+  
+  |]
+
+actualVolPath
+  = IVolpath
+  $ VolPath
+     { volPathMaxDepth      = 1
+     , volPathRrDepth       = 2
+     , volPathStrictNormals = Strict
+     , volPathHideEmitters  = Visible
+     }
+
+case_volpath_toXML
+  = actualVolPath `assertElement` [xmlQQ|
+    <integrator type="volpath">
+      <integer name="maxDepth" value="1" />
+      <integer name="rrDepth" value="2" />
+      <boolean name="strictNormals" value="true" />
+      <boolean name="hideEmitters" value="true" />
+    </integrator>
+  
+  |]
+
+actualBdpt 
+  = IBdpt
+  $ BDPT
+      { bdptMaxDepth     = 0
+      , bdptLightImage   = ConnectToCamera
+      , bdptSampleDirect = DirectSampling
+      , bdptRrDepth      = 1
+      }
+
+case_bdpt_toXML
+  = actualBdpt `assertElement` [xmlQQ|
+    <integrator type="bdpt">
+      <integer name="maxDepth" value="0" />
+      <boolean name="lightImage" value="true" />
+      <boolean name="sampleDirect" value="true" />
+      <integer name="rrDepth" value="1" />
+    </integrator>
+
+  |]
+  
+actualPhotonMapper 
+  = IPhotonmapper
+  $ PhotonMapper
+     { photonMapperDirectSamples       = 1
+     , photonMapperGlossySamples       = 2
+     , photonMapperMaxDepth            = 3
+     , photonMapperGlobalPhotons       = 4
+     , photonMapperCausticPhotons      = 5
+     , photonMapperVolumePhotons      = 6
+     , photonMapperGlobalLookupRadius  = 7
+     , photonMapperCausticLookupRadius = 8
+     , photonMapperLookupSize          = 9
+     , photonMapperGranularity         = 10
+     , photonMapperHideEmitters        = False
+     , photonMapperRrDepth             = 11
+     }
+  
+case_photonmapper_toXML 
+  = actualPhotonMapper `assertElement` [xmlQQ|
+    <integrator type="photonmapper">
+      <integer name="directSamples"  value="1"      />
+      <integer name="glossySamples"  value="2"      />
+      <integer name="maxDepth"       value="3"      />
+      <integer name="globalPhotons"  value="4"      />
+      <integer name="causticPhotons" value="5"      />
+      <integer name="volumePhotons"  value="6"      />
+      <float   name="globalLookupRadius"   value="7.0"    />
+      <float   name="causticLookupRadius"  value="8.0"    />
+      <integer name="lookupSize"     value="9"      />
+      <integer name="granularity"    value="10"     />
+      <boolean name="hideEmitters"   value="false"  />
+      <integer name="rrDepth"        value="11"     />
+    </integrator>
+  
+  |]
+  
+actualPpm 
+  = IPpm 
+  $ PPM 
+      { ppmMaxDepth      = 1
+      , ppmPhotonCount   = 2
+      , ppmInitialRadius = 3
+      , ppmAlpha         = 4
+      , ppmGranularity   = 5
+      , ppmRrDepth       = 6
+      , ppmMaxPasses     = 7
+      }
+
+
+case_ppm_toXML
+  = actualPpm `assertElement` [xmlQQ|
+    <integrator type="ppm">
+      <integer name="maxDepth" value="1" />
+      <integer name="photonCount" value="2" />
+      <float name="initialRadius" value="3.0" />
+      <float name="alpha" value="4.0" />
+      <integer name="granularity" value="5" />
+      <integer name="rrDepth" value="6" />
+      <integer name="maxPasses" value="7" />
+    </integrator>
+
+  |]
+  
+actualSppm 
+  = ISppm
+  $ SPPM
+      { sppmMaxDepth      = 1
+      , sppmPhotonCount   = 2
+      , sppmInitialRadius = 3
+      , sppmAlpha         = 4
+      , sppmGranularity   = 5
+      , sppmRrDepth       = 6
+      , sppmMaxPasses     = 7
+      }
+
+case_sppm_toXML
+  = actualSppm `assertElement` [xmlQQ|
+    <integrator type="sppm">
+      <integer name="maxDepth" value="1" />
+      <integer name="photonCount" value="2" />
+      <float name="initialRadius" value="3.0" />
+      <float name="alpha" value="4.0" />
+      <integer name="granularity" value="5" />
+      <integer name="rrDepth" value="6" />
+      <integer name="maxPasses" value="7" />
+    </integrator>
+
+  |]
+  
+actualPssmlt 
+  = IPssmlt
+  $ PSSMLT
+     { pssmltBidirectional    = True
+     , pssmltMaxDepth         = 1
+     , pssmltDirectSamples    = 2
+     , pssmltRrDepth          = 3
+     , pssmltLuminanceSamples = 4
+     , pssmltTwoStage         = True
+     , pssmltPlarge           = 5
+     }
+
+case_pssmlt_toXML
+   = actualPssmlt `assertElement` [xmlQQ|
+     <integrator type="pssmlt">
+       <boolean name="bidirectional"    value="true" />
+       <integer name="maxDepth"         value="1" />
+       <integer name="directSamples"    value="2" />
+       <integer name="rrDepth"          value="3" />
+       <integer name="luminanceSamples" value="4" />
+       <boolean name="twoStage"         value="true" />
+       <float   name="plarge"           value="5.0" />
+     </integrator>
+   |]
+   
+actualMlt 
+  = IMlt
+  $ MLT
+      { mltMaxDepth               = 1
+      , mltDirectSamples          = 2
+      , mltLuminanceSamples       = 3
+      , mltTwoStage               = True
+      , mltBidirectionalMutation  = False
+      , mltLensPerturbation       = True
+      , mltMultiChainPertubation  = False
+      , mltCausticPertubation     = True
+      , mltManifoldPertubation    = False
+      , mltLambda                 = 4
+      }
+
+case_mlt_toXML
+   = actualMlt `assertElement` [xmlQQ|
+     <integrator type="mlt">
+       <integer name="maxDepth"              value="1" />
+       <integer name="directSamples"         value="2" />
+       <integer name="luminanceSamples"      value="3" />
+       <boolean name="twoStage"              value="true" />
+       <boolean name="bidirectionalMutation" value="false" />
+       <boolean name="lensPerturbation"      value="true" />
+       <boolean name="multiChainPertubation" value="false" />
+       <boolean name="causticPertubation"    value="true" />
+       <boolean name="manifoldPertubation"   value="false" />
+       <float   name="lambda"                value="4.0" />
+     </integrator>
+   |]
+
+actualErpt
+  = IErpt
+  $ ERPT
+      { erptMaxDepth               = 1
+      , erptNumChains              = 2
+      , erptMaxChains              = 3
+      , erptChainLength            = 4
+      , erptDirectSamples          = 5
+      , erptLensPerturbation       = True
+      , erptMultiChainPerturbation = False
+      , erptCausticPerturbation    = True
+      , erptManifoldPerturbation   = False
+      , erptLambda                 = 6
+      }
+
+case_erpt_toXML
+   = actualErpt `assertElement` [xmlQQ|
+     <integrator type="erpt">
+       <integer name="maxDepth"               value="1"     />
+       <float   name="numChains"              value="2.0"   />
+       <float   name="maxChains"              value="3.0"   />
+       <integer name="chainLength"            value="4"     />
+       <integer name="directSamples"          value="5"     />
+       <boolean name="lensPerturbation"       value="true"  />
+       <boolean name="multiChainPerturbation" value="false" />
+       <boolean name="causticPerturbation"    value="true"  />
+       <boolean name="manifoldPerturbation"   value="false" />
+       <float   name="lambda"                 value="6.0"   />
+     </integrator>
+   |]
+
+actualPtracer 
+  = IPtracer
+  $ PTracer
+      { ptracerMaxDepth    = 1
+      , ptracerRrDepth     = 2
+      , ptracerGranularity = 3
+      , ptracerBruteForce  = False
+      }
+
+case_ptracer_toXML 
+  = actualPtracer `assertElement` [xmlQQ|
+     <integrator type="ptracer">
+       <integer name="maxDepth"    value="1"     />
+       <integer name="rrDepth"     value="2"     />
+       <integer name="granularity" value="3"     />
+       <boolean name="bruteForce"  value="false" />
+     </integrator>
+   |]
+
+actualAdaptive
+  = IAdaptive
+  $ Adaptive
+      { adaptiveMaxError        = 1
+      , adaptivePValue          = 2
+      , adaptiveMaxSampleFactor = 3
+      }
+
+case_adaptive_toXML 
+  = actualAdaptive `assertElement` [xmlQQ|
+     <integrator type="adaptive">
+       <float   name="maxError"        value="1.0"     />
+       <float   name="pValue"          value="2.0"     />
+       <integer name="maxSampleFactor" value="3"     />
+     </integrator>
+   |]
+
+actualVpl 
+  = IVpl
+  $ VPL
+      { vplMaxDepth            = 1
+      , vplShadowMapResolution = 2
+      , vplClamping            = 3
+      }
+
+case_vpl_toXML 
+  = actualVpl `assertElement` [xmlQQ|
+     <integrator type="vpl">
+       <integer name="maxDepth"            value="1"   />
+       <integer name="shadowMapResolution" value="2"   />
+       <float   name="clamping"            value="3.0" />
+     </integrator>
+   |]
+
+actualIRRCache
+  = IIrrcache
+  $ IRRCache 
+     { irrCacheResolution        = 1
+     , irrCacheQuality           = 2
+     , irrCacheGradients         = True
+     , irrCacheClampNeighbor      = False
+     , irrCacheClampScreen       = True
+     , irrCacheOverture          = False
+     , irrCacheQualityAdjustment = 3
+     , irrCacheIndirectOnly      = False
+     , irrCacheDebug             = True
+     }
+
+case_irrcache_toXML 
+  = actualIRRCache `assertElement` [xmlQQ|
+     <integrator type="irrcache"> 
+        <integer name="resolution"         value="1"     />
+        <float   name="quality"            value="2.0"   />
+        <boolean name="gradients"          value="true"  />
+        <boolean name="clampNeighbor"      value="false" />
+        <boolean name="clampScreen"        value="true"  />
+        <boolean name="overture"           value="false" />
+        <float   name="qualityAdjustment"  value="3.0"   />
+        <boolean name="indirectOnly"       value="false" />
+        <boolean name="debug"              value="true"  />
+     </integrator>
+  |]
 
 {-
-  
-
--- TODO ao
-
-
---shadingSamples integer Specifies the number of shading samples that should be com- puted per primary ray (Default: 1)
---rayLength      float Specifies the world-space length of the ambient occlusion raysthatwillbecast. (Default:-1,i.e.automatic)
-
--- TODO direct
-
---shadingSamples integer This convenience parameter can be used to set both emitterSamples and bsdfSamples at the same time.
---emitterSamples integer Optional more fine-grained parameter: specifies the num- ber of samples that should be generated using the direct il-
---lumination strategies implemented by the scene’s emitters (Default: set to the value of shadingSamples)
---bsdfSamples integer Optional more fine-grained parameter: specifies the num- ber of samples that should be generated using the BSDF
---sampling strategies implemented by the scene’s surfaces (De- fault: set to the value of shadingSamples)
---strictNormals boolean Be strict about potential inconsistencies involving shading normals?Seepage151fordetails. (Default:no,i.e.false)
---hideEmitters boolean Hidedirectlyvisibleemitters?Seepage147fordetails. (De- fault: no, i.e. false)
-
-
---TODO Path
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
---strictNormals boolean Be strict about potential inconsistencies involving shading normals? See the description below for details. (Default: no,
---i.e. false)
---hideEmitters boolean Hidedirectlyvisibleemitters?Seepage147fordetails. (De- fault: no, i.e. false)
-
---TODO volpath_simple
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
---strictNormals boolean Be strict about potential inconsistencies involving shading normals?Seepage151fordetails. (Default:no,i.e.false)
---hideEmitters boolean Hidedirectlyvisibleemitters?Seepage147fordetails. (De- fault: no, i.e. false)
-
---TODO volpath
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
---strictNormals boolean Be strict about potential inconsistencies involving shading normals?Seepage151fordetails. (Default:no,i.e.false)
---hideEmitters boolean Hidedirectlyvisibleemitters?Seepage147fordetails. (De- fault: no, i.e. false)
---
-
---TODO bdpt
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---lightImage
---boolean Include sampling strategies that connect paths traced from emitters directly to the camera? (i.e. what ptracer does) This improves the effectiveness of bidirectional path tracing but severely increases the local and remote communication
---overhead, since large light images must be transferred be- tween threads or over the network. See the text below for amoredetailedexplanation. (Default:includethesestrate- gies, i.e. true)
---sampleDirect boolean Enable direct sampling strategies? This is a generalization of direct illumination sampling that works with both emit-
---ters and sensors. Usually a good idea. (Default: use direct sampling, i.e. true)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
-
---TODO ppm
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---photonCount integer Number of photons to be shot per iteration (Default: 250000)
---initialRadius float Initialradiusofgatherpointsinworldspaceunits. (Default: 0, i.e. decide automatically)
---alpha float Radius reduction parameter alpha from the paper (Default: 0.7)
---granularity integer Granularity of photon tracing work units for the purpose of parallelization (in # of shot particles) (Default: 0, i.e. decide
---automatically)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
---maxPasses integer Maximum number of passes to render (where -1 corre- spondstorenderinguntilstoppedmanually). (Default:-1)
-
---TODO  sppm
---maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
---render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
---photonCount integer Number of photons to be shot per iteration (Default: 250000)
---initialRadius float Initialradiusofgatherpointsinworldspaceunits. (Default: 0, i.e. decide automatically)
---alpha float Radius reduction parameter alpha from the paper (Default: 0.7)
---granularity integer Granularity of photon tracing work units for the purpose of parallelization (in # of shot particles) (Default: 0, i.e. decide
---automatically)
---rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
---nationcriterion. (Default:5)
---maxPasses integer Maximum number of passes to render (where -1 corre- spondstorenderinguntilstoppedmanually). (Default:-1)
-
---TODO pssmlt
--- bidirectional
--- boolean PSSMLT works in conjunction with another rendering tech- nique that is endowed with Markov Chain-based sample
--- generation. Two choices are available (Default: true):
--- • true: Operate on top of a fully-fleged bidirectional
--- path tracer with multiple importance sampling.
--- • false: Rely on a unidirectional volumetric path tracer (i.e. volpath)
--- maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
--- render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
--- directSamples
--- integer By default, this plugin renders the direct illumination com- ponent separately using an optimized direct illumination
--- sampling strategy that uses low-discrepancy number se- quences for superior performance (in other words, it is not rendered by PSSMLT). This parameter specifies the number of samples allocated to that method. To force PSSMLT to be responsible for the direct illumination component as well, setthisparameterto-1. (Default:16)
--- rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
--- nationcriterion. (Default:5)
--- luminanceSamples
--- integer MLT-type algorithms create output images that are only rel- ative. The algorithm can e.g. determine that a certain pixel
--- is approximately twice as bright as another one, but the ab- solute scale is unknown. To recover it, this plugin computes the average luminance arriving at the sensor by generating anumberofsamples. (Default:100000samples)
--- twoStage boolean Usetwo-stageMLT?Seebelowfordetails. (Default:false)
--- pLarge float Rate at which the implementation tries to replace the cur- rent path with a completely new one. Usually, there is little
--- needtochangethis. (Default:0.3)
-
--- TODO mlt
--- maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
--- render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
--- directSamples
--- integer By default, the implementation renders direct illumina- tion component separately using the direct plugin, which
--- uses low-discrepancy number sequences for superior per- formance (in other words, it is not handled by MLT). This parameter specifies the number of samples allocated to that method. To force MLT to be responsible for the direct illu- minationcomponentaswell,setthisto-1. (Default:16)
--- luminanceSamples
--- integer MLT-type algorithms create output images that are only rel- ative. The algorithm can e.g. determine that a certain pixel
--- is approximately twice as bright as another one, but the ab- solute scale is unknown. To recover it, this plugin computes the average luminance arriving at the sensor by generating anumberofsamples. (Default:100000samples)
--- twoStage boolean Use two-stage MLT? See pssmlt for details. (Default: false)
--- bidirectional⤦ boolean These parameters can be used to pick the individual muta- Mutation, tion and perturbation strategies that will be used to explore
--- [lens,multiChain, caustic,manifold]⤦ Perturbation
--- path space. By default, the original set by Veach and Guibas is enabled (i.e. everything except the manifold perturba- tion). It is possible to extend this integrator with additional custom perturbations strategies if needed.
--- lambda float Jump size of the manifold perturbation (Default: 50)
-
--- TODO erpt
--- maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
--- render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
--- numChains float On average, how many Markov Chains should be started perpixel? (Default:1)
--- maxChains float How many Markov Chains should be started at most (per pixel) (Default: 0, i.e. this feature is not used)
--- chainLength integer Specifies the number of perturbation steps that are executed per Markov Chain (Default: 1).
--- directSamples
--- integer By default, the implementation renders direct illumina- tion component separately using the direct plugin, which
--- uses low-discrepancy number sequences for superior per- formance (in other words, it is not handled by ERPT). This parameter specifies the number of samples allocated to that method. To force MLT to be responsible for the direct illu- minationcomponentaswell,setthisto-1. (Default:16)
--- [lens,multiChain, boolean caustic,manifold]⤦ Perturbation
--- These parameters can be used to pick the individual pertur- bation strategies that will be used to explore path space. By default, the original set by Veach and Guibas is enabled (i.e. everything except the manifold perturbation).
--- lambda float Jump size of the manifold perturbation (Default: 50)
-
--- TODO ptracer
--- maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 1 will only
--- render directly visible light sources. 2 will lead to single- bounce(direct-only)illumination,andsoon. (Default:-1)
--- rrDepth integer Specifies the minimum path depth, after which the imple- mentation will start to use the “russian roulette” path termi-
--- nationcriterion. (Default:5)
--- granularity integer Specifies the work unit granularity used to parallize the the particle tracing task. This should be set high enough so that accumulating partially exposed images (and potentially
--- sendingthemoverthenetwork)isnotthebottleneck. (De- fault: 200K particles per work unit, i.e. 200000)
--- bruteForce boolean If set to true, the integrator does not attempt to create con- nections to the sensor and purely relies on hitting it via ray tracing. This is mainly intended for debugging purposes.
--- (Default: false)
-
---TODO adaptive
---maxError float Maximum relative error threshold (Default: 0.05)
---pValue float Required p-value to accept a sample (Default: 0.05)
---maxSampleFactor
---integer Maximum number of samples to be generated relative to the number of configured pixel samples. The adaptive integra-
---tor will stop after this many samples, regardless of whether or not the error criterion was satisfied. A negative value will be interpreted as ∞. (Default: 32—for instance, when 64 pixel samples are configured in the sampler, this means that the adaptive integrator will give up after 32*64=2048 samples)
-
--- TODO vpl
--- maxDepth integer Specifies the longest path depth in the generated output im- age (where -1 corresponds to ∞). A value of 2 will lead to
--- direct-onlyillumination. (Default:5)
--- shadowMap⤦ integer Resolution of the shadow maps that are used to compute the Resolution point-to-point visibility (Default: 512)
--- clamping float A relative clamping factor between [0, 1] that is used to con- troltherenderingartifactdiscussedbelow. (Default:0.1)
-
--- TODO -irrache
-
---Parameter Type Description
---resolution integer Elevational resolution of the stratified final gather hemi- sphere. The azimuthal resolution is two times this value.
---(Default: 14, i.e. 2 ⋅ 142 =392 samples in total)
---quality float Quality factor (the κ parameter of Tabellion et al. [43]) (De- fault: 1.0, which is adequate for most cases)
---gradients boolean Use irradiance gradients [49]? (Default: true)
---clampNeighbor boolean Use neighbor clamping [29]? (Default: true)
---clampScreen boolean Use a screen-space clamping criterion [43]? (Default: true)
---overture boolean Do an overture pass before starting the main rendering pro- cess? Usually a good idea. (Default: true)
---quality⤦ float When an overture pass is used, Mitsuba subsequently re- Adjustment duces the quality parameter by this amount to interpolate amongst more samples, creating a visually smoother result.
---(Default: 0.5)
---indirectOnly boolean Only show the indirect illumination? This can be useful to checktheinterpolationquality. (Default:false)
---debug boolean Visualizethesampleplacement? (Default:false)
 
 -- TODO independent
 -- sampleCount integer Number of samples per pixel (Default: 4)
