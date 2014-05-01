@@ -2,15 +2,16 @@
 {-# LANGUAGE ExtendedDefaultRules #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Tests.Mitsuba.Types where
 import Mitsuba.Types
 import Mitsuba.Utils
 import Mitsuba.Element
 import Test.Tasty
-import Test.Tasty.HUnit
+import Test.Tasty.HUnit hiding (Label)
 import Test.Tasty.TH
 import Data.Text (Text)
-import Test.HUnit
+import Test.HUnit hiding (Label)
 import GHC.Generics
 import Data.List
 import Text.Blaze
@@ -22,6 +23,7 @@ import qualified Text.XML.Light.Types as XML
 import qualified Text.XML.Light.Output as XML
 import Data.Maybe
 import Control.Lens
+import Data.Data
 import Data.Default.Generics
 default (Text, Integer, Double)
 
@@ -2087,7 +2089,7 @@ case_spherical_toXML
 actualIrradianceMeter 
   = Sensor 
       { sensorFilm = Just 
-          ( FMFilm 
+          ( FMfilm 
             ( MFilm 
               { mfilmWidth = 0
               , mfilmHeight = 0
@@ -2120,15 +2122,15 @@ actualIrradianceMeter
 case_irradiancemeter_toXML 
   = actualIrradianceMeter `assertElement` [xmlQQ|
       <sensor type="irradiancemeter">
-        <mfilm>
+        <film type="mfilm">
           <integer name="digits" value="0"/>
           <integer name="height" value="0"/>
-          <string name="rfilter" value="box"/>
+          <rfilter type="box"/>
           <integer name="width" value="0"/>
           <string name="variable" value=""/>
           <boolean name="highQualityEdges" value="false"/>
           <string name="pixelFormat" value=""/>
-        </mfilm>
+        </film>
         <sampler type="sobol">
           <integer name="sampleCount" value="0"/>
           <integer name="scramble" value="0"/>
@@ -2690,79 +2692,57 @@ case_Sobol
         <integer name="scramble"    value="2" />
       </sampler>
     |]
+    
+data TestMetaData = TestMetaData { testMetaDataX :: Int }
+  deriving (Show, Eq, Ord, Read, Typeable, Data, Generic)
+  
+instance ToElement TestMetaData
 
+actualHdrFilm 
+  = FHdrfilm
+  $ HDRfilm
+      { hdrFilmWidth            = 1
+      , hdrFilmHeight           = 2
+      , hdrFilmFileFormat       = Openexr
+      , hdrFilmPixelFormat      = PFLuminance
+      , hdrFilmComponentFormat  = Float16
+      , hdrFilmCropOffsetX      = 3
+      , hdrFilmCropOffsetY      = 4
+      , hdrFilmCropWidth        = 5
+      , hdrFilmCropHeight       = 6
+      , hdrFilmAttachLog        = True
+      , hdrFilmBanner           = False
+      , hdrFilmHighQualityEdges = True
+      , hdrFilmRFilter          = RFBox
+      , hdrFilmMetaData         = ()
+      , hdrFilmLabels           = Label 50 80 "hey"
+      }
+
+
+case_HdrFilm_toXML 
+  = actualHdrFilm `assertElement` [xmlQQ|
+     <film type="hdrfilm">
+       <integer name="width"            value="1" />
+       <integer name="height"           value="2" />
+       <integer name="cropOffsetX"      value="3" />
+       <integer name="cropOffsetY"      value="4" />
+       <integer name="cropWidth"        value="5" />
+       <integer name="cropHeight"       value="6" />
+       <string  name="fileFormat"       value="openexr" />
+       <string  name="pixelFormat"      value="luminance" />
+       <string  name="componentFormat"  value="float16"  />
+       <boolean name="attachLog"        value="true" />
+       <boolean name="banner"           value="false" />
+       <boolean name="highQualityEdges" value="true" />
+       <rfilter type="box" />
+       <string name="label[50, 80]"    value="hey" />
+     </film>
+  |]
 
 {-
 
 
-8.11.3. Lowdiscrepancysampler(ldsampler)
-Parameter
-sampleCount
-dimension
-Type
-integer
-integer
-Description
-Number of samples per pixel; should be a power of two (e.g. 1, 2, 4, 8, 16, etc.), or it will be rounded up to the next one (Default: 4)
-Effective dimension, up to which low discrepancy samples are provided. The number here is to be interpreted as the number of subsequent 1D or 2D sample requests that can be satisfied using “good” samples. Higher high values increase bothstorageandcomputationalcosts. (Default:4)
 
-
-8.11.4. HaltonQMCsampler(halton)
-Parameter
-sampleCount
-scramble
-Type
-integer
-integer
-Description
-Number of samples per pixel (Default: 4)
-This plugin can operate in one of three scrambling modes:
-(i) When set to 0, the implementation will provide the standard Halton sequence.
-(ii) When set to -1, the implementation will compute a scrambled variant of the Halton sequence based on permutations by Faure [10], which has better equidis- tribution properties in high dimensions.
-(iii) Whensettoavaluegreaterthanone,arandompermu- tation is chosen based on this number. This is useful to break up temporally coherent noise when render- ing the frames of an animation — in this case, simply set the parameter to the current frame index.
-Default: -1, i.e. use the Faure permutations. Note that per- mutations rely on a precomputed table that consumes ap- proximately 7 MiB of additional memory at run time.
-1.0
-0.8
-0.6
-
-
-8.11.5. HammersleyQMCsampler(hammersley)
-Parameter
-sampleCount
-scramble
-Type
-integer
-integer
-Description
-Number of samples per pixel (Default: 4)
-This plugin can operate in one of three scrambling modes:
-(i) When set to 0, the implementation will provide the standard Hammersley sequence.
-(ii) When set to -1, the implementation will compute a scrambled variant of the Hammersley sequence based on permutations by Faure [10], which has bet- ter equidistribution properties in high dimensions.
-(iii) Whensettoavaluegreaterthanone,arandompermu- tation is chosen based on this number. This is useful to break up temporally coherent noise when render- ing the frames of an animation — in this case, simply set the parameter to the current frame index.
-Default: -1, i.e. use the Faure permutations. Note that per- mutations rely on a precomputed table that consumes ap- proximately 7 MiB of additional memory at run time.
-
-
-8.11.6. SobolQMCsampler(sobol)
-Parameter
-sampleCount
-scramble
-Type
-integer
-integer
-Description
-Number of samples per pixel (Default: 4)
-This parameter can be used to set a scramble value to break up temporally coherent noise patterns. For stills, this is ir- relevant. When rendering an animation, simply set it to the currentframeindex. (Default:0)
-
-
-_case_hdrfilm_0_toXML
-  = () `assertElement` [xmlQQ|
-<film type="hdrfilm">
-  <string name="pixelFormat" value="rgba"/>
-  <integer name="width" value="1920"/>
-  <integer name="height" value="1080"/>
-  <boolean name="banner" value="false"/>
-</film>
-|]
 
 _case_hdrfilm_1_toXML
   = () `assertElement` [xmlQQ|

@@ -2116,25 +2116,67 @@ instance ToElement ComponentFormat where
       Float16 -> "float16" :: Text
       Float32 -> "float32"
       UInt32  -> "uint32"
+      
+data Label = Label 
+  { labelWidth  :: Integer
+  , labelHeight :: Integer
+  , labelValue  :: Text
+  } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+  
+instance Default Label
+instance ToElement Label where
+  toElement Label {..} 
+    = tag "label"
+    .!> ("a", toElement labelValue 
+    # ("name", format' "label[{}, {}]" (labelWidth, labelHeight))) 
 
-data HDRfilm = HDRfilm
-   { hdrfilmWidth            :: Integer
-   , hdrfilmHeight           :: Integer
-   , hdrfilmFileFormat       :: FileFormatType
-   , hdrfilmPixelFormat      :: PixelFormat
-   , hdrfilmComponentFormat  :: ComponentFormat
-   , hdrfilmCropOffsetX      :: Integer
-   , hdrfilmCropOffsetY      :: Integer
-   , hdrfilmCropWidth        :: Integer
-   , hdrfilmCropHeight       :: Integer
-   , hdrfilmAttachLog        :: Bool
-   , hdrfilmBanner           :: Bool
-   , hdrfilmHighQualityEdges :: Bool
-   , hdrfilmRFilter          :: ReconstructionFilter
+data HDRfilm m = HDRfilm
+   { hdrFilmWidth            :: Integer
+   , hdrFilmHeight           :: Integer
+   , hdrFilmFileFormat       :: FileFormatType
+   , hdrFilmPixelFormat      :: PixelFormat
+   , hdrFilmComponentFormat  :: ComponentFormat
+   , hdrFilmCropOffsetX      :: Integer
+   , hdrFilmCropOffsetY      :: Integer
+   , hdrFilmCropWidth        :: Integer
+   , hdrFilmCropHeight       :: Integer
+   , hdrFilmAttachLog        :: Bool
+   , hdrFilmBanner           :: Bool
+   , hdrFilmHighQualityEdges :: Bool
+   , hdrFilmRFilter          :: RFilter
+   , hdrFilmMetaData         :: m 
+   , hdrFilmLabels           :: Label
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
-   
-instance Default HDRfilm   
-instance ToElement HDRfilm
+
+makeMetaDataNames :: Element -> Element
+makeMetaDataNames e 
+  = over 
+      elementChildrenL 
+      ( H.fromList 
+      . map (first (\x -> "metadata['" <> x <> "']")) 
+      . H.toList
+      )
+      e
+
+instance Default m => Default (HDRfilm m)  
+instance ToElement m => ToElement (HDRfilm m) where
+  toElement HDRfilm {..} = (tag "hdrfilm" 
+    .> ("width"           , hdrFilmWidth)
+    .> ("height"          , hdrFilmHeight)
+    .> ("fileFormat"      , hdrFilmFileFormat)
+    .> ("pixelFormat"     , hdrFilmPixelFormat)
+    .> ("componentFormat" , hdrFilmComponentFormat)
+    .> ("cropOffsetX"     , hdrFilmCropOffsetX)
+    .> ("cropOffsetY"     , hdrFilmCropOffsetY)
+    .> ("cropWidth"       , hdrFilmCropWidth)
+    .> ("cropHeight"      , hdrFilmCropHeight)
+    .> ("attachLog"       , hdrFilmAttachLog)
+    .> ("banner"          , hdrFilmBanner)
+    .> ("highQualityEdges", hdrFilmHighQualityEdges)
+    .!> ("rfilter"         , hdrFilmRFilter))
+    `appendChildren` (makeMetaDataNames $ toElement hdrFilmMetaData)
+    `appendChildren` hdrFilmLabels
+  
    
 data Crop = Crop
    { cropCropOffsetX :: Integer
@@ -2152,7 +2194,7 @@ data TiledHDRFilm = TiledHDRFilm
    , tiledHDRFilmCrop            :: Maybe Crop
    , tiledHDRFilmPixelFormat     :: PixelFormat
    , tiledHDRFilmComponentFormat :: ComponentFormat
-   , tiledHDRFilmRFilter         :: ReconstructionFilter
+   , tiledHDRFilmRFilter         :: RFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default TiledHDRFilm
@@ -2197,7 +2239,7 @@ data GammaFilm = GammaFilm
    , ldffilmBanner           :: Bool
    , ldffilmCrop             :: Maybe Crop
    , ldffilmHighQualityEdges :: Bool
-   , ldffilmRFilter          :: ReconstructionFilter
+   , ldffilmRFilter          :: RFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default GammaFilm
@@ -2226,7 +2268,7 @@ data ReinhardFilm = ReinhardFilm
    , reinhardFilmBanner           :: Bool
    , reinhardFilmCrop             :: Maybe Crop
    , reinhardFilmHighQualityEdges :: Bool
-   , reinhardFilmRFilter          :: ReconstructionFilter
+   , reinhardFilmRFilter          :: RFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default ReinhardFilm
@@ -2254,7 +2296,7 @@ data MFilm = MFilm
    , mfilmVariable         :: String
    , mfilmPixelFormat      :: String
    , mfilmHighQualityEdges :: Bool
-   , mfilmRFilter          :: ReconstructionFilter
+   , mfilmRFilter          :: RFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default MFilm
@@ -2267,38 +2309,50 @@ instance ToElement MFilm where
       .> ("variable"        , mfilmVariable)
       .> ("pixelFormat"     , mfilmPixelFormat)
       .> ("highQualityEdges", mfilmHighQualityEdges)
-      .> ("rfilter"         , mfilmRFilter)
+      .!> ("rfilter"         , mfilmRFilter)
 
+instance ToElement () where
+  toElement () = tag "unit"
 
+-- TODO change () to Element when Element gets fixed to use an 
+-- enum attribute
 data Film 
-   = FHdrfilm      HDRfilm
+   = FHdrfilm      (HDRfilm ())
    | FTiledHDRFilm TiledHDRFilm
    | FLdrfilm      LDRfilm
-   | FMFilm        MFilm
+   | FMfilm        MFilm
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default Film
-instance ToElement Film where
-   toElement = forwardToElement   
+instance ToElement Film    
    
-data ReconstructionFilter
+data RFilter
    = RFBox
    | RFTent
    | RFGaussian
-   | RFMitchell
-   | RFCatmullrom
-   | RFLanczos
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+   | RFMitchell Double Double
+   | RFCatmullrom Double Double
+   | RFLanczos Integer
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
-instance Default ReconstructionFilter
-instance ToElement ReconstructionFilter where
-   toElement x = primitive "string" $ case x of
-      RFBox        -> "box" :: Text
-      RFTent       -> "tent"
-      RFGaussian   -> "gaussian"
-      RFMitchell   -> "mitchell"
-      RFCatmullrom -> "catmullrom"
-      RFLanczos    -> "lanczos"
+instance Default RFilter
+instance ToElement RFilter where
+   toElement x = case x of
+      RFBox        -> tag "rfilter" # ("type", "box")
+      RFTent       -> tag "rfilter" # ("type", "tent") 
+      RFGaussian   -> tag "rfilter" # ("type", "gaussian") 
+      RFMitchell   b c   -> (tag "rfilter" 
+                          # ("type", "mitchell")) 
+                         .> ("B", b)
+                         .> ("C", c)
+      RFCatmullrom b c   -> (tag "rfilter" 
+                          # ("type", "catmullrom"))
+                         .> ("B", b)
+                         .> ("C", c)
+      RFLanczos    lobes -> (tag "rfilter" 
+                          # ("type", "lanczos"))
+                         .> ("lobes", lobes)
+      
       
 data Include = Include 
    { includeFilename :: FilePath
