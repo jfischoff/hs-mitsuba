@@ -2411,20 +2411,20 @@ instance ToElement AnyAlias where
    toElement (AnyAlias x) = toElement x
       
 data SceneNodeData 
-   = SNShape          Shape
-   | SNBSDF           BSDF
-   | SNTexture        Texture
-   | SNSSS            Subsurface
-   | SNMedium Medium  
-   | SNPhase          Phase
-   | SNVolume  Volume 
-   | SNEmitter        Emitter
-   | SNSensor         Sensor
-   | SNIntegrator     Integrator
-   | SNSampler        Sampler
-   | SNFilms          Film
-   | SInclude         Include
-   | SAlias           AnyAlias
+   = SNDShape          Shape
+   | SNDBSDF           BSDF
+   | SNDTexture        Texture
+   | SNDSSS            Subsurface
+   | SNDMedium Medium  
+   | SNDPhase          Phase
+   | SNDVolume  Volume 
+   | SNDEmitter        Emitter
+   | SNDSensor         Sensor
+   | SNDIntegrator     Integrator
+   | SNDSampler        Sampler
+   | SNDFilms          Film
+   | SNDInclude         Include
+   | SNDAlias           AnyAlias
    deriving (Show, Eq, Read, Ord, Generic, Typeable)
 
 instance Default SceneNodeData
@@ -2443,15 +2443,14 @@ instance ToElement SceneNode where
       Nothing -> toElement nodeData
 
 data Scene = Scene 
-   { version :: (Int, Int, Int)
-   , nodes   :: [SceneNode]
+   { nodes   :: [SceneNode]
    } deriving(Eq, Show, Ord, Read, Typeable, Generic)
 
 instance Default Scene
 instance ToElement Scene where
-   toElement (Scene (x, y, z) nodes) 
+   toElement (Scene nodes) 
       = addChildList 
-         (tag "scene" # ("version", intercalate "." $ map show [x, y, z]))
+         (tag "scene" # ("version", "0.5.0"))
          nodes
             
 

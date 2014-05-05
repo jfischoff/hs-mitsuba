@@ -2943,8 +2943,26 @@ case_lanczos_toXML
     </rfilter>
   |]
 
+actualSceneNode = SceneNode 
+      { nodeData = SNDInclude $ Include "file.txt"
+      , nodeId   = Just "id"
+      }
 
+case_SceneNode_toXML 
+  = actualSceneNode `assertElement` [xmlQQ|
+        <include id="id" filename="file.txt" />
+      |]
 
+-- SceneNode test
+-- Scene Test
+
+case_Scene_toXML 
+  = Scene [actualSceneNode]
+  `assertElement` [xmlQQ|
+    <scene version="0.5.0" >
+       <include id="id" filename="file.txt" />
+    </scene>
+  |]
 
 
 
