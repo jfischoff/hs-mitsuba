@@ -2094,10 +2094,10 @@ actualIrradianceMeter
               { mfilmWidth = 0
               , mfilmHeight = 0
               , mfilmCrop = Nothing
-              , mfilmFileFormat = Openexr
+              , mfilmFileFormat = MFFFMatlab
               , mfilmDigits = 0
               , mfilmVariable = ""
-              , mfilmPixelFormat = ""
+              , mfilmPixelFormat = PFLuminance
               , mfilmHighQualityEdges = False
               , mfilmRFilter = RFBox
               }
@@ -2129,7 +2129,8 @@ case_irradiancemeter_toXML
           <integer name="width" value="0"/>
           <string name="variable" value=""/>
           <boolean name="highQualityEdges" value="false"/>
-          <string name="pixelFormat" value=""/>
+          <string name="fileFormat" value="matlab" />
+          <string name="pixelFormat" value="luminance"/>
         </film>
         <sampler type="sobol">
           <integer name="sampleCount" value="0"/>
@@ -2139,6 +2140,8 @@ case_irradiancemeter_toXML
         <float name="shutterClose" value="2.0"/>
       </sensor>
   |]
+  
+
 
 actualRadianceMeter
   = Sensor Nothing Nothing
@@ -2739,93 +2742,165 @@ case_HdrFilm_toXML
      </film>
   |]
 
+
+actualTiledHDRFilm 
+  = FTiledhdrfilm
+  $ TiledHDRFilm 
+      { tiledHDRFilmWidth           = 1
+      , tiledHDRFilmHeight          = 2
+      , tiledHDRFilmCrop            = Just $ Crop 
+          { cropCropOffsetX = 3
+          , cropCropOffsetY = 4
+          , cropCropWidth   = 5
+          , cropCropHeight  = 6
+          }
+      , tiledHDRFilmPixelFormat     = PFLuminance
+      , tiledHDRFilmComponentFormat = Float16
+      , tiledHDRFilmRFilter         = RFBox
+      }
+
+case_TiledHdrFilm_toXML 
+  = actualTiledHDRFilm `assertElement` [xmlQQ|
+     <film type="tiledhdrfilm">
+       <integer name="width"            value="1" />
+       <integer name="height"           value="2" />
+       <integer name="cropOffsetX"      value="3" />
+       <integer name="cropOffsetY"      value="4" />
+       <integer name="cropWidth"        value="5" />
+       <integer name="cropHeight"       value="6" />
+       <string  name="pixelFormat"      value="luminance" />
+       <string  name="componentFormat"  value="float16"  />
+       <rfilter type="box" />
+     </film>
+  |]
+
+actualGammaLDRFilm 
+  = FLdrfilm
+  $ LDRFGammaFilm
+  $ GammaFilm
+      { ldrfilmWidth            = 1
+      , ldrfilmHeight           = 2
+      , ldrfilmFileFormat       = Openexr
+      , ldrfilmPixelFormat      = PFLuminance
+      , ldrfilmGamma            = GTGammaCurve 3.0
+      , ldffilmExposure         = 4
+      , ldffilmBanner           = True
+      , ldffilmCrop             = Just $ Crop 
+            { cropCropOffsetX = 5
+            , cropCropOffsetY = 6
+            , cropCropWidth   = 7
+            , cropCropHeight  = 8
+            }
+      , ldffilmHighQualityEdges = False
+      , ldffilmRFilter          = RFBox
+      }
+
+case_GammaLdrFilm_toXML 
+  = actualGammaLDRFilm `assertElement` [xmlQQ|
+     <film type="ldrfilm">
+       <integer name="width"            value="1" />
+       <integer name="height"           value="2" />
+       <string  name="fileFormat"       value="openexr" />
+       <string  name="pixelFormat"      value="luminance" />
+       <string  name="tonemapMethod"    value="gamma" />
+       <float   name="gamma"            value="3.0" />
+       <float   name="exposure"         value="4.0" />
+       <boolean name="banner"           value="true"/>
+       <integer name="cropOffsetX"      value="5" />
+       <integer name="cropOffsetY"      value="6" />
+       <integer name="cropWidth"        value="7" />
+       <integer name="cropHeight"       value="8" />
+       <boolean name="highQualityEdges" value="false" />
+       <rfilter type="box" />
+     </film>
+  |]
+
+
+actualReinhardLDRFilm 
+  = FLdrfilm
+  $ LDRFReinhard
+  $  ReinhardFilm
+     { reinhardFilmWidth            = 1
+     , reinhardFilmHeight           = 2
+     , reinhardFilmFileFormat       = Openexr
+     , reinhardFilmPixelFormat      = PFLuminance
+     , reinhardFilmGamma            = GTGammaCurve 3.0
+     , reinhardFilmExposure         = 4
+     , reinhardFilmKey              = 5
+     , reinhardFilmBurn             = 6
+     , reinhardFilmBanner           = True
+     , reinhardFilmCrop             = Just $ Crop 
+           { cropCropOffsetX = 7
+           , cropCropOffsetY = 8
+           , cropCropWidth   = 9
+           , cropCropHeight  = 10
+           }
+     , reinhardFilmHighQualityEdges = False
+     , reinhardFilmRFilter          = RFBox
+     }
+
+
+case_ReinhardLdrFilm_toXML 
+   = actualReinhardLDRFilm `assertElement` [xmlQQ|
+      <film type="ldrfilm">
+        <integer name="width"            value="1" />
+        <integer name="height"           value="2" />
+        <string  name="fileFormat"       value="openexr" />
+        <string  name="pixelFormat"      value="luminance" />
+        <string  name="tonemapMethod"    value="reinhard" />
+        <float   name="gamma"            value="3.0" />
+        <float   name="exposure"         value="4.0" />
+        <float   name="key"              value="5.0" />
+        <float   name="burn"             value="6.0" />        
+        <boolean name="banner"           value="true"/>
+        <integer name="cropOffsetX"      value="7" />
+        <integer name="cropOffsetY"      value="8" />
+        <integer name="cropWidth"        value="9" />
+        <integer name="cropHeight"       value="10" />
+        <boolean name="highQualityEdges" value="false" />
+        <rfilter type="box" />
+      </film>
+   |]
+
+actualMFilm 
+  = FMfilm
+  $ MFilm 
+     { mfilmWidth            = 1
+     , mfilmHeight           = 2
+     , mfilmCrop             = Just $ Crop 
+            { cropCropOffsetX = 3
+            , cropCropOffsetY = 4
+            , cropCropWidth   = 5
+            , cropCropHeight  = 6
+            }
+     , mfilmFileFormat       = MFFFMatlab
+     , mfilmDigits           = 7
+     , mfilmVariable         = "data"
+     , mfilmPixelFormat      = PFLuminance
+     , mfilmHighQualityEdges = True
+     , mfilmRFilter          = RFBox
+     }
+
+case_MFilm_toXML
+  = actualMFilm `assertElement` [xmlQQ|
+      <film type="mfilm">
+        <integer name="width"            value="1" />
+        <integer name="height"           value="2" />
+        <integer name="cropOffsetX"      value="3" />
+        <integer name="cropOffsetY"      value="4" />
+        <integer name="cropWidth"        value="5" />
+        <integer name="cropHeight"       value="6" />
+        <string  name="fileFormat"       value="matlab" />
+        <integer name="digits"           value="7" />
+        <string  name="variable"         value="data" />
+        <string  name="pixelFormat"      value="luminance" />
+        <boolean name="highQualityEdges" value="true" />
+        <rfilter type="box" />
+      </film>
+   |]
+
+
 {-
-
-
-
-
-_case_hdrfilm_1_toXML
-  = () `assertElement` [xmlQQ|
-<film type="hdrfilm">
-  <string name="metadata['key_name']" value="Hello!"/>
-  <string name="label[50, 80]" value="Hello!"/>
-</film>
-|]
-
-
--- test the label ability
---￼<string name="label[10, 10]" value="Integrator: $integrator['type'], $film['width']x$film['height'], $sampler['sampleCount'] spp, render time: $scene['renderTime'], memory: $scene['memUsage']"/>
-
-
--- add this functionality
-
-
-$scene[’renderTime’]
-$scene[’memUsage’]
-$scene[’coreCount’]
-$scene[’blockSize’]
-$scene[’sourceFile’]
-$scene[’destFile’]
-$integrator[’..’]
-$sensor[’..’]
-$sampler[’..’]
-$film[’..’]
-Image render time, use renderTimePrecise for more digits. Mitsuba memory usage19. Use memUsagePrecise for more digits. Number of local and remote cores working on the rendering job Block size used to parallelize up the rendering workload
-Source file name
-Destination file name
-Copy a named integrator parameter
-Copy a named sensor parameter
-Copy a named sampler parameter
-Copy a named film parameter
-
-
-8.12.2. Tiledhighdynamicrangefilm(tiledhdrfilm)
-Parameter Type Description
-width, height integer Width and height of the camera sensor in pixels (Default: 768, 576)
-cropOffsetX,
-cropOffsetY,
-cropWidth,
-cropHeight
-integer
-These parameters can optionally be provided to select a sub- rectangle of the output. In this case, Mitsuba will only ren- dertherequestedregions. (Default:Unused)
-pixelFormat
-string Specifies the desired pixel format for OpenEXR output im- ages. The options are luminance, luminanceAlpha, rgb, rgba, xyz, xyza, spectrum, and spectrumAlpha. In the
-latter two cases, the number of written channels depends on the value assigned to SPECTRUM_SAMPLES during compila- tion (see Section 4 section for details) (Default: rgb)
-componentFormat string Specifies the desired floating point component format used for the output. The options are float16, float32, or
-uint32 (Default: float16)
-(Nested plugin) rfilter Reconstruction filter that should be used by the film. (De- fault: gaussian, a windowed Gaussian filter)
-
-
-
-
-
-
-8.12.3. Lowdynamicrangefilm(ldrfilm)
-Parameter Type Description
-width, height integer Camera sensor resolution in pixels (Default: 768, 576)
-fileFormat integer Thedesiredoutputfileformat:pngorjpeg. (Default:png)
-pixelFormat string Specifies the pixel format of the generated image. The op- tions are luminance, luminanceAlpha, rgb or rgba for
-PNG output and rgb or luminance for JPEG output.
-tonemapMethod string Method used to tonemap recorded radiance values
-(i) gamma: Exposure and gamma correction (default)
-(ii) reinhard: Apply the the tonemapping technique by Reinhard et al. [39] followd by gamma correction.
-gamma float The gamma curve applied to correct the output image, where the special value -1 indicates sRGB. (Default: -1)
-exposure float When gamma tonemapping is active, this parameter speci- fies an exposure factor in f-stops that is applied to the im-
-age before gamma correction (scaling the radiance values by2exposure). (Default:0,i.e.donotchangetheexposure)
-key float When reinhard tonemapping is active, this parameter in (0, 1] specifies whether a low-key or high-key image is de-
-sired. (Default:0.18,correspondingtoamiddle-grey)
-burn float When reinhard tonemapping is active, this parameter in [0,1]specifieshowmuchhighlightscanburnout. (Default:
-0, i.e. map all luminance values into the displayable range)
-banner boolean Include a banner in the output image? (Default: true)
-cropOffsetX,
-cropOffsetY,
-cropWidth,
-cropHeight
-integer
-These parameters can optionally be provided to select a sub- rectangle of the output. In this case, Mitsuba will only ren- dertherequestedregions. (Default:Unused)
-highQualityEdges boolean If set to true, regions slightly outside of the film plane will also be sampled. This may improve image quality at the
-edges,butisnotneededingeneral. (Default:false)
-(Nested plugin) rfilter Reconstruction filter that should be used by the film. (De- fault: gaussian, a windowed Gaussian filter)
 
 
 

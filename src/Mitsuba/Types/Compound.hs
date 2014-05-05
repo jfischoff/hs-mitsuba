@@ -2116,6 +2116,8 @@ instance ToElement ComponentFormat where
       Float16 -> "float16" :: Text
       Float32 -> "float32"
       UInt32  -> "uint32"
+
+-- Add a type for the types of things you can refer to.
       
 data Label = Label 
   { labelWidth  :: Integer
@@ -2201,12 +2203,13 @@ instance Default TiledHDRFilm
 instance ToElement TiledHDRFilm where
    toElement TiledHDRFilm {..}
       = maybe (tag "tiledhdrfilm") 
-          (\x -> tag "tiledhdrfilm" .> ("crop", x)) tiledHDRFilmCrop
+          (\x -> tag "tiledhdrfilm" `appendChildren` x) 
+          tiledHDRFilmCrop
       .> ("width"          , tiledHDRFilmWidth          )
       .> ("height"         , tiledHDRFilmHeight         )
       .> ("pixelFormat"    , tiledHDRFilmPixelFormat    )
       .> ("componentFormat", tiledHDRFilmComponentFormat)
-      .> ("rFilter"        , tiledHDRFilmRFilter        )
+      .!> ("rFilter"        , tiledHDRFilmRFilter        )
           
 
 data GammaType
@@ -2246,21 +2249,23 @@ instance Default GammaFilm
 instance ToElement GammaFilm where
    toElement GammaFilm {..} 
       = maybe (tag "gammafilm") 
-          (\x -> tag "gammafilm" .> ("crop", x)) ldffilmCrop
-     .> ("width"                       , ldrfilmWidth            )
-     .> ("height"                      , ldrfilmHeight           )   
-     .> ("fileFormat"                  , ldrfilmFileFormat       )
-     .> ("pixelFormat"                 , ldrfilmPixelFormat      )
-     .> ("gamma"                       , ldrfilmGamma            )
-     .> ("exposure"                    , ldffilmExposure         )   
-     .> ("banner"                      , ldffilmBanner           )
-     .> ("highQualityEdges"            , ldffilmHighQualityEdges )
-     .> ("rFilter"                     , ldffilmRFilter          )
+          (\x -> tag "gammafilm" `appendChildren` x) ldffilmCrop
+     .>  ("width"                       , ldrfilmWidth            )
+     .>  ("height"                      , ldrfilmHeight           )   
+     .>  ("fileFormat"                  , ldrfilmFileFormat       )
+     .>  ("pixelFormat"                 , ldrfilmPixelFormat      )
+     .>  ("gamma"                       , ldrfilmGamma            )
+     .>  ("exposure"                    , ldffilmExposure         )   
+     .>  ("banner"                      , ldffilmBanner           )
+     .>  ("highQualityEdges"            , ldffilmHighQualityEdges )
+     .!> ("rFilter"                     , ldffilmRFilter          )
+     .>  ("tonemapMethod", "gamma")
                                        
 data ReinhardFilm = ReinhardFilm
    { reinhardFilmWidth            :: Integer
    , reinhardFilmHeight           :: Integer
-   , reinhardFilmPixelFormat      :: FileFormatType
+   , reinhardFilmFileFormat       :: FileFormatType
+   , reinhardFilmPixelFormat      :: PixelFormat
    , reinhardFilmGamma            :: GammaType
    , reinhardFilmExposure         :: Double
    , reinhardFilmKey              :: Double
@@ -2275,9 +2280,10 @@ instance Default ReinhardFilm
 instance ToElement ReinhardFilm where
    toElement ReinhardFilm {..} 
      = maybe (tag "reinhardfilm") 
-               (\x -> tag "reinhardfilm" .> ("crop", x)) reinhardFilmCrop
+               (\x -> tag "reinhardfilm" `appendChildren` x) reinhardFilmCrop
      .> ("width"            , reinhardFilmWidth           )
      .> ("height"           , reinhardFilmHeight          )
+     .> ("fileFormat"       , reinhardFilmFileFormat      )
      .> ("pixelFormat"      , reinhardFilmPixelFormat     )
      .> ("gamma"            , reinhardFilmGamma           )
      .> ("exposure"         , reinhardFilmExposure        )
@@ -2285,16 +2291,30 @@ instance ToElement ReinhardFilm where
      .> ("burn"             , reinhardFilmBurn            )
      .> ("banner"           , reinhardFilmBanner          )
      .> ("highQualityEdges" , reinhardFilmHighQualityEdges)
-     .> ("rfilter"          , reinhardFilmRFilter         )
+     .!> ("rfilter"          , reinhardFilmRFilter        )
+     .> ("tonemapMethod", "reinhard")
+
+data MFilmFileFormat 
+  = MFFFMatlab
+  | MFFFMathematica
+  | MFFFNumpy
+  deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+  
+instance Default MFilmFileFormat
+instance ToElement MFilmFileFormat where
+  toElement x = toElement $ case x of
+    MFFFMatlab      -> "matlab"
+    MFFFMathematica -> "mathematica"
+    MFFFNumpy       -> "numpy"
 
 data MFilm = MFilm 
    { mfilmWidth            :: Integer
    , mfilmHeight           :: Integer
    , mfilmCrop             :: Maybe Crop
-   , mfilmFileFormat       :: FileFormatType
+   , mfilmFileFormat       :: MFilmFileFormat
    , mfilmDigits           :: Integer
    , mfilmVariable         :: String
-   , mfilmPixelFormat      :: String
+   , mfilmPixelFormat      :: PixelFormat
    , mfilmHighQualityEdges :: Bool
    , mfilmRFilter          :: RFilter
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
@@ -2302,11 +2322,12 @@ data MFilm = MFilm
 instance Default MFilm
 instance ToElement MFilm where
    toElement MFilm {..} 
-       = maybe (tag "mfilm") (\x -> tag "mfilm" .> ("crop", x)) mfilmCrop
+       = maybe (tag "mfilm") (\x -> tag "mfilm" `appendChildren` x) mfilmCrop
       .> ("width"           , mfilmWidth )
       .> ("height"          , mfilmHeight)
       .> ("digits"          , mfilmDigits)
       .> ("variable"        , mfilmVariable)
+      .> ("fileFormat"      , mfilmFileFormat)
       .> ("pixelFormat"     , mfilmPixelFormat)
       .> ("highQualityEdges", mfilmHighQualityEdges)
       .!> ("rfilter"         , mfilmRFilter)
@@ -2318,7 +2339,7 @@ instance ToElement () where
 -- enum attribute
 data Film 
    = FHdrfilm      (HDRfilm ())
-   | FTiledHDRFilm TiledHDRFilm
+   | FTiledhdrfilm TiledHDRFilm
    | FLdrfilm      LDRfilm
    | FMfilm        MFilm
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
