@@ -2351,9 +2351,9 @@ data RFilter
    = RFBox
    | RFTent
    | RFGaussian
-   | RFMitchell Double Double
-   | RFCatmullrom Double Double
-   | RFLanczos Integer
+   | RFMitchell   { mitchellB :: Double, mitchellC :: Double }
+   | RFCatmullrom { catmullromB :: Double, catmullromC :: Double}
+   | RFLanczos    { lanczosLobes :: Integer }
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default RFilter

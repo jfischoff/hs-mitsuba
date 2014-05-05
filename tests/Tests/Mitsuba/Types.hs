@@ -2899,48 +2899,49 @@ case_MFilm_toXML
       </film>
    |]
 
-
-{-
-
-
-
-8.12.4. MATLAB/Mathematicafilm(mfilm)
-Parameter Type Description
-width, height integer Width and height of the sensor in pixels (Default: 1, 1)
-cropOffsetX,
-cropOffsetY,
-cropWidth,
-cropHeight
-integer
-These parameters can optionally be provided to select a sub- rectangle of the output. In this case, Mitsuba will only ren- dertherequestedregions. (Default:Unused)
-fileFormat string Specifies the desired output format; must be one of matlab ormathematica. (Default:matlab)
-digits integer Number of significant digits to be written (Default: 4)
-variable string Name of the target variable (Default: "data")
-pixelFormat
-string Specifies the desired pixel format of the generated image. The options are luminance, luminanceAlpha, rgb, rgba, spectrum, and spectrumAlpha. In the latter two cases, the number of written channels depends on the value as- signed to SPECTRUM_SAMPLES during compilation (see Sec-
-tion 4 section for details) (Default: luminance)
-highQualityEdges boolean If set to true, regions slightly outside of the film plane will also be sampled. This may improve the image quality at the
-edges, especially when using very large reconstruction fil- ters. In general (and particularly using the default box filter), thisisnotneededthough. (Default:false,i.e.disabled)
-(Nested plugin) rfilter Reconstruction filter that should be used by the film. (De- fault: box, a simple box filter)
-
-
-
-
-_case_rfilter_toXML 
-  = () `assertElement` [xmlQQ|
-<rfilter type="lanczos">
-  <integer name="lobes" value="2"/>
-</rfilter>
+case_box_filter_toXML 
+  = RFBox `assertElement` [xmlQQ|
+    <rfilter type="box" />
   |]
 
--}
+case_tent_filter_toXML
+  = RFTent `assertElement` [xmlQQ|
+    <rfilter type="tent" />
+  |]
+  
+case_gaussian_toXML 
+  = RFGaussian `assertElement` [xmlQQ|
+    <rfilter type="gaussian" />
+  |]
 
+actualMitchell = RFMitchell 1 2
 
+case_mitchell_toXML 
+  = actualMitchell `assertElement` [xmlQQ|
+    <rfilter type="mitchell" >
+      <float name="B" value="1.0" />
+      <float name="C" value="2.0" />
+    </rfilter>
+  |]
 
+actualCatmullrom = RFCatmullrom 1 2
 
+case_catmullrom_toXML 
+  = actualCatmullrom `assertElement` [xmlQQ|
+    <rfilter type="catmullrom" >
+      <float name="B" value="1.0" />
+      <float name="C" value="2.0" />
+    </rfilter>
+  |]
 
+actualLanczos = RFLanczos 2
 
-
+case_lanczos_toXML 
+  = actualLanczos `assertElement` [xmlQQ|
+    <rfilter type="lanczos" >
+      <integer name="lobes" value="2" />
+    </rfilter>
+  |]
 
 
 
