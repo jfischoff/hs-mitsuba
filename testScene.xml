@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<scene version="0.5.0">
+    <shape type="cube">
+        <transform name="toWorld"/>
+        <bsdf type="diffuse">
+            <texture name="reflectance" type="vertexcolors"/>
+        </bsdf>
+        <boolean name="flipNormals" value="false"/>
+    </shape>
+    <sensor type="perspective">
+        <float name="shutterClose" value="1.0"/>
+        <film type="ldrfilm">
+            <boolean name="banner" value="false"/>
+            <integer name="height" value="100"/>
+            <float name="gamma" value="1.0"/>
+            <rfilter type="gaussian"/>
+            <string name="fileFormat" value="jpeg"/>
+            <string name="tonemapMethod" value="gamma"/>
+            <integer name="width" value="100"/>
+            <float name="exposure" value="1.0"/>
+            <boolean name="highQualityEdges" value="true"/>
+            <string name="pixelFormat" value="rgb"/>
+        </film>
+        <float name="farClip" value="500.0"/>
+        <string name="focalLength" value="35.0mm"/>
+        <sampler type="ldsampler">
+            <integer name="sampleCount" value="1"/>
+            <integer name="dimension" value="1"/>
+        </sampler>
+        <string name="fovAxis" value="tx"/>
+        <float name="shutterOpen" value="0.0"/>
+        <float name="nearClip" value="0.1"/>
+        <transform name="toWorld"/>
+    </sensor>
+</scene>

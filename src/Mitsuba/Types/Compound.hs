@@ -1510,7 +1510,7 @@ data FOVType
    | FOVTDiagonal
    | FOVTSmaller
    | FOVTLarger
-   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
 
 instance Default FOVType
 instance ToElement FOVType where
@@ -1521,10 +1521,21 @@ instance ToElement FOVType where
       FOVTSmaller  -> "smaller"
       FOVTLarger   -> "larger"
 
+           
+data LensView 
+  = LVFocalLength Double
+  | LVFieldOfView Double
+   deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
+  
+instance Default LensView
+instance ToElement LensView where
+  toElement x = ($ tag "dummy") $ case x of
+     LVFocalLength d -> (.> ("focalLength", show d ++ "mm"))
+     LVFieldOfView d -> (.> ("fov", d))
+
 data Perspective = Perspective
    { perspectiveToWorld      :: Transform
-   , perspectiveFocalLength  :: Double
-   , perspectiveFov          :: Double
+   , perspectiveView         :: LensView
    , perspectiveFovAxis      :: FOVType
    , perspectiveShutterOpen  :: Double
    , perspectiveShutterClose :: Double
@@ -1533,14 +1544,23 @@ data Perspective = Perspective
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Perspective
-instance ToElement Perspective
+instance ToElement Perspective where
+  toElement Perspective {..} 
+     =  tag "perspective"
+      `appendChildren`   perspectiveView
+     .> ("toWorld"     , perspectiveToWorld)
+     .> ("fovAxis"     , perspectiveFovAxis)
+     .> ("shutterOpen" , perspectiveShutterOpen)
+     .> ("shutterClose", perspectiveShutterClose)
+     .> ("nearClip"    , perspectiveNearClip)
+     .> ("farClip"     , perspectiveFarClip)
+    
 
 data Thinlens = Thinlens
    { thinlensToWorld         :: Transform
    , thinlensAperatureRadius :: Double
    , thinlensFocusDistance   :: Double
-   , thinlensFocalLength     :: Double
-   , thinlensFOV             :: Double
+   , thinlensView            :: LensView
    , thinlensFOVAxis         :: FOVType
    , thinlensShutterOpen     :: Double
    , thinlensShutterClose    :: Double
@@ -1552,11 +1572,10 @@ instance Default Thinlens
 instance ToElement Thinlens where
   toElement Thinlens {..} 
     =  tag "thinlens" 
+    `appendChildren` thinlensView
     .> ("toWorld", thinlensToWorld)
     .> ("aperatureRadius", thinlensAperatureRadius)
     .> ("focusDistance", thinlensFocusDistance)
-    .> ("focalLength", show thinlensFocalLength ++ "mm")
-    .> ("fov", thinlensFOV)
     .> ("fovaxis", thinlensFOVAxis)
     .> ("shutterOpen", thinlensShutterOpen)
     .> ("shutterClose", thinlensShutterClose)
@@ -1706,7 +1725,7 @@ instance ToElement Sensor where
    
 data AmbientOcclusion = AmbientOcclusion 
    { ambientOcclusionShadingSamples :: Integer
-   , ambientOcclusionRayLength     :: Double
+   , ambientOcclusionRayLength      :: Double
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default AmbientOcclusion
@@ -1987,23 +2006,23 @@ instance ToElement MultiChannel where
   toElement (MultiChannel xs) = addChildList (tag "multichannel") xs
 
 data Integrator 
-   = IAo            AmbientOcclusion 
-   | IDirect        Direct
-   | IPath          Path
+   = IAo             AmbientOcclusion 
+   | IDirect         Direct
+   | IPath           Path
    | IVolpath_simple VolPathSimple
-   | IVolpath       VolPath
-   | IBdpt          BDPT
-   | IPhotonmapper  PhotonMapper
-   | IPpm           PPM
-   | ISppm          SPPM
-   | IPssmlt        PSSMLT
-   | IMlt           MLT
-   | IErpt          ERPT
-   | IPtracer       PTracer
-   | IAdaptive      Adaptive
-   | IVpl           VPL
-   | IIrrcache      IRRCache
-   | IMultichannel  MultiChannel
+   | IVolpath        VolPath
+   | IBdpt           BDPT
+   | IPhotonmapper   PhotonMapper
+   | IPpm            PPM
+   | ISppm           SPPM
+   | IPssmlt         PSSMLT
+   | IMlt            MLT
+   | IErpt           ERPT
+   | IPtracer        PTracer
+   | IAdaptive       Adaptive
+   | IVpl            VPL
+   | IIrrcache       IRRCache
+   | IMultichannel   MultiChannel
    deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Integrator
@@ -2231,11 +2250,22 @@ data LDRfilm
 instance Default LDRfilm   
 instance ToElement LDRfilm where
    toElement = forwardToElement
-   
+
+data LDRFileFormatType 
+  = JPEG
+  | PNG
+  deriving (Show, Eq, Read, Ord, Generic, Data, Typeable, Enum, Bounded)
+
+instance Default   LDRFileFormatType
+instance ToElement LDRFileFormatType where
+  toElement x = toElement $ case x of
+     JPEG -> "jpeg"
+     PNG  -> "png"
+
 data GammaFilm = GammaFilm
    { ldrfilmWidth            :: Integer
    , ldrfilmHeight           :: Integer
-   , ldrfilmFileFormat       :: FileFormatType
+   , ldrfilmFileFormat       :: LDRFileFormatType
    , ldrfilmPixelFormat      :: PixelFormat
    , ldrfilmGamma            :: GammaType
    , ldffilmExposure         :: Double
@@ -2264,7 +2294,7 @@ instance ToElement GammaFilm where
 data ReinhardFilm = ReinhardFilm
    { reinhardFilmWidth            :: Integer
    , reinhardFilmHeight           :: Integer
-   , reinhardFilmFileFormat       :: FileFormatType
+   , reinhardFilmFileFormat       :: LDRFileFormatType
    , reinhardFilmPixelFormat      :: PixelFormat
    , reinhardFilmGamma            :: GammaType
    , reinhardFilmExposure         :: Double
@@ -2411,20 +2441,19 @@ instance ToElement AnyAlias where
    toElement (AnyAlias x) = toElement x
       
 data SceneNodeData 
-   = SNDShape          Shape
-   | SNDBSDF           BSDF
-   | SNDTexture        Texture
-   | SNDSSS            Subsurface
-   | SNDMedium Medium  
-   | SNDPhase          Phase
-   | SNDVolume  Volume 
-   | SNDEmitter        Emitter
-   | SNDSensor         Sensor
-   | SNDIntegrator     Integrator
-   | SNDSampler        Sampler
-   | SNDFilms          Film
-   | SNDInclude         Include
-   | SNDAlias           AnyAlias
+   = SNDShape      Shape
+   | SNDBSDF       BSDF
+   | SNDTexture    Texture
+   | SNDSSS        Subsurface
+   | SNDMedium     Medium  
+   | SNDPhase      Phase
+   | SNDVolume     Volume 
+   | SNDEmitter    Emitter
+   | SNDSensor     Sensor
+   | SNDIntegrator Integrator
+   | SNDSampler    Sampler
+   | SNDInclude    Include
+   | SNDAlias      AnyAlias
    deriving (Show, Eq, Read, Ord, Generic, Typeable)
 
 instance Default SceneNodeData

@@ -1965,8 +1965,7 @@ actualPerspective
   $ STPerspective
   $ Perspective
        { perspectiveToWorld      = mempty
-       , perspectiveFocalLength  = 1
-       , perspectiveFov          = 2
+       , perspectiveView         = LVFocalLength 1
        , perspectiveFovAxis      = FOVTX
        , perspectiveShutterOpen  = 3
        , perspectiveShutterClose = 4
@@ -1978,8 +1977,7 @@ case_perspective_toXML
   = actualPerspective `assertElement` [xmlQQ|
       <sensor type="perspective" >
           <transform name="toWorld" />
-          <float name="focalLength" value="1.0" />
-          <float name="fov" value="2.0" />
+          <string name="focalLength" value="1.0mm" />
           <string name="fovAxis" value="tx" />
           <float name="shutterOpen" value="3.0" />
           <float name="shutterClose" value="4.0" />
@@ -1995,8 +1993,7 @@ actualThinLens
       { thinlensToWorld         = mempty
       , thinlensAperatureRadius = 1
       , thinlensFocusDistance   = 2
-      , thinlensFocalLength     = 3
-      , thinlensFOV             = 4
+      , thinlensView            = LVFieldOfView 4
       , thinlensFOVAxis         = FOVTY
       , thinlensShutterOpen     = 5
       , thinlensShutterClose    = 6
@@ -2010,7 +2007,6 @@ case_thinlens_toXML
       <transform name="toWorld" />
       <float name="aperatureRadius" value="1.0" />
       <float name="focusDistance" value="2.0" />
-      <string name="focalLength" value="3.0mm" />
       <float name="fov" value="4.0" />
       <string name="fovaxis" value="ty" />
       <float name="shutterOpen" value="5.0" />
@@ -2780,7 +2776,7 @@ actualGammaLDRFilm
   $ GammaFilm
       { ldrfilmWidth            = 1
       , ldrfilmHeight           = 2
-      , ldrfilmFileFormat       = Openexr
+      , ldrfilmFileFormat       = JPEG
       , ldrfilmPixelFormat      = PFLuminance
       , ldrfilmGamma            = GTGammaCurve 3.0
       , ldffilmExposure         = 4
@@ -2800,7 +2796,7 @@ case_GammaLdrFilm_toXML
      <film type="ldrfilm">
        <integer name="width"            value="1" />
        <integer name="height"           value="2" />
-       <string  name="fileFormat"       value="openexr" />
+       <string  name="fileFormat"       value="jpeg" />
        <string  name="pixelFormat"      value="luminance" />
        <string  name="tonemapMethod"    value="gamma" />
        <float   name="gamma"            value="3.0" />
@@ -2822,7 +2818,7 @@ actualReinhardLDRFilm
   $  ReinhardFilm
      { reinhardFilmWidth            = 1
      , reinhardFilmHeight           = 2
-     , reinhardFilmFileFormat       = Openexr
+     , reinhardFilmFileFormat       = PNG
      , reinhardFilmPixelFormat      = PFLuminance
      , reinhardFilmGamma            = GTGammaCurve 3.0
      , reinhardFilmExposure         = 4
@@ -2845,7 +2841,7 @@ case_ReinhardLdrFilm_toXML
       <film type="ldrfilm">
         <integer name="width"            value="1" />
         <integer name="height"           value="2" />
-        <string  name="fileFormat"       value="openexr" />
+        <string  name="fileFormat"       value="png" />
         <string  name="pixelFormat"      value="luminance" />
         <string  name="tonemapMethod"    value="reinhard" />
         <float   name="gamma"            value="3.0" />
