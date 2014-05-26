@@ -10,6 +10,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Mitsuba.Types.Primitives where
 import Mitsuba.Element hiding (Visibility (Hidden))
 import Control.Lens hiding ((#), (.>))
@@ -31,16 +32,48 @@ import Control.Arrow hiding (left)
 import qualified Data.Foldable as F
 import Data.Maybe
 import Data.Default.Generics
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
+import Data.Function
+import Data.Map (Map)
+import qualified Data.Map as M
 default (Text, Integer, Double)
+
+newtype RefractiveValue = RefractiveValue { unRefractiveValue :: Double }
+  deriving (Show, Eq, Ord, Read, Data, Generic, Typeable, ToElement)
+  
+instance Default RefractiveValue where
+  def = RefractiveValue 1.000100
+  
+newtype PositiveDouble = PositiveDouble { unPositiveDouble :: Double }
+  deriving (Show, Eq, Ord, Read, Data, Generic, Typeable, ToElement)
+  
+instance Default PositiveDouble where
+  def = PositiveDouble 1
+  
+newtype NormalizedDouble = NormalizedDouble { unNormalizedDouble :: Double } 
+  deriving (Show, Eq, Ord, Read, Data, Generic, Typeable, ToElement)
 
 type Wavelength = Double
 type Amplitude  = Double
 
+data AtLeastTwo k v = AtLeastTwo { unAtLeastTwo :: Map k v }
+  deriving (Eq, Show, Read, Ord, Generic, Typeable, Data)
+
+makeAtLeastTwo k v k' v'
+  | k /= k' = Just $ H.fromList [(k, v), (k', v')]
+  | otherwise = Nothing
+
+atleastTwoToList = M.toList . unAtLeastTwo
+
+
 newtype WavelengthStyle = 
-   WavelengthStyle { unWavelengthStyle :: [(Wavelength, Amplitude)] }
+   WavelengthStyle { unWavelengthStyle :: AtLeastTwo PositiveDouble Amplitude }
       deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
       
-instance Default WavelengthStyle
+instance Default WavelengthStyle where
+  def = WavelengthStyle $ AtLeastTwo 
+      $ M.fromList [(PositiveDouble 600, 0.5), (PositiveDouble  800, 0.5)]
 
 data InternalSpectralFormat = InternalSpectralFormat
    { isfA :: Double
@@ -105,7 +138,7 @@ data RGBLike
 instance Default RGBLike
 
 newtype Temperature = Temperature { unTemperature :: Integer }
-   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic, Num)
    
 instance Default Temperature
 
@@ -130,10 +163,11 @@ instance Default Spectrum
 
 format' x = TL.toStrict . format x
 
+-- must be in increasing order
 instance ToAttributeValue WavelengthStyle where
    toAttributeValue = T.intercalate ", "
-           . map (\(x, y) -> toFixed 0 x <> ":" <> toFixed 2 y)
-           . unWavelengthStyle
+           . map (\(PositiveDouble x, y) -> (T.pack . show) x <> ":" <> (T.pack . show) y) 
+           . sortBy (\x y -> fst x `compare` fst y) . atleastTwoToList . unWavelengthStyle
 
 instance ToAttributeValue InternalSpectralFormat where
   toAttributeValue 

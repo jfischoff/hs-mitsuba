@@ -10,6 +10,8 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Mitsuba.Types.Compound where
 import Mitsuba.Element hiding (Visibility (Hidden))
 import qualified Mitsuba.Element as E
@@ -40,8 +42,28 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Language.Haskell.TH.Module.Magic
 import MonadUtils
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NonEmpty
 default (Text, Integer, Double)
 
+-- positive, non zero, integer
+newtype Whole = Whole { unWhole :: Integer }
+  deriving (Eq, Show, Ord, Read, Data, Generic, Typeable, ToElement)
+  
+instance Default Whole where
+  def = Whole 1
+  
+newtype NonZero = NonZero { unNonZero :: Double }
+  deriving (Eq, Show, Ord, Read, Data, Generic, Typeable, ToElement)
+  
+instance Default NonZero where
+  def = NonZero 1
+
+toWhole :: Integer -> Maybe Whole  
+toWhole x 
+  | x > 0     = Just $ Whole x
+  | otherwise = Nothing
+  
 tshow :: Show a => a -> Text
 tshow = T.pack . show
 
@@ -264,7 +286,7 @@ instance ToElement Cube
    
 data Sphere = Sphere 
    { sphereCenter      :: Point
-   , sphereRadius      :: Double
+   , sphereRadius      :: PositiveDouble
    , sphereFlipNormals :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic) 
    
@@ -274,7 +296,7 @@ instance ToElement Sphere
 data Cylinder = Cylinder 
    { cylinderP0          :: Point
    , cylinderP1          :: Point
-   , cylinderRadius      :: Double
+   , cylinderRadius      :: PositiveDouble
    , cylinderFlipNormals :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
@@ -373,7 +395,7 @@ instance ToElement Diffuse
    
 data RoughDiffuse = RoughDiffuse 
    { roughDiffuseReflectance   :: Color
-   , roughDiffuseAlpha         :: Color
+   , roughDiffuseAlpha         :: Luminance
    , roughDiffuseUseFastApprox :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
@@ -414,22 +436,22 @@ instance ToAttributeValue KnownMaterial where
       Helium              -> "helium"
       Hydrogen            -> "hydrogen"
       Air                 -> "air"
-      CarbonDioxide       -> "carbonDioxide"
+      CarbonDioxide       -> "carbon dioxide"
       Water               -> "water"
       Acetone             -> "acetone"
       Ethanol             -> "ethanol"
-      CarbonTetrachloride -> "carbonTetrachloride"
+      CarbonTetrachloride -> "carbon tetrachloride"
       Glycerol            -> "glycerol"
       Benzene             -> "benzene"
-      SiliconeOil         -> "siliconeOil"
+      SiliconeOil         -> "silicone oil"
       Bromine             -> "bromine"
       WaterIce            -> "waterIce"
-      FusedQuartz         -> "fusedQuartz"
+      FusedQuartz         -> "fused quartz"
       Pyrex               -> "pyrex"
-      AcrylicGlass        -> "acrylicGlass"
+      AcrylicGlass        -> "acrylic glass"
       Polypropylene       -> "polypropylene"
       Bk7                 -> "bk7"
-      SodiumChloride      -> "sodiumChloride"
+      SodiumChloride      -> "sodium chloride"
       Amber               -> "amber"
       Pet                 -> "pet"
       Diamond             -> "diamond"
@@ -439,7 +461,7 @@ instance ToElement KnownMaterial where
 
 data Refraction 
    = RKM KnownMaterial 
-   | IOR Double 
+   | IOR RefractiveValue 
    deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default Refraction   
@@ -668,19 +690,10 @@ instance Default Conductor
 -- Luminance
 -- and a instance that forwards
 
-data IndexOfRefraction 
-   = IORNumeric       Double
-   | IORKnownMaterial KnownMaterial
-   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic) 
-
-instance Default IndexOfRefraction
-instance ToElement IndexOfRefraction where
-   toElement = forwardToElement
-
 data RoughConductor = RoughConductor 
   { roughConductorAlpha               :: AlphaDistribution
   , roughConductorConductance         :: Conductance
-  , roughConductorExtEta              :: IndexOfRefraction
+  , roughConductorExtEta              :: Refraction
   , roughConductorSpecularReflectance :: Color
   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
@@ -706,7 +719,7 @@ instance Default Plastic
 instance ToElement Plastic
 
 data RoughPlastic = RoughPlastic
-   { roughPlasticAlpha               :: AlphaDistribution
+   { roughPlasticAlpha               :: UniformAlpha
    , roughPlasticIntIOR              :: Refraction
    , roughPlasticExtIOR              :: Refraction
    , roughPlasticSpecularReflectance :: Color
@@ -743,8 +756,8 @@ instance ToElement Coating where
       
 data RoughCoating = RoughCoating
    { roughCoatingAlpha               :: AlphaDistribution
-   , roughCoatingIntIOR              :: IndexOfRefraction
-   , roughCoatingExtIOR              :: IndexOfRefraction
+   , roughCoatingIntIOR              :: Refraction
+   , roughCoatingExtIOR              :: Refraction
    , roughCoatingThickness           :: Double
    , roughCoatingSigmaA              :: Color
    , roughCoatingSpecularReflectance :: Color
@@ -752,7 +765,16 @@ data RoughCoating = RoughCoating
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default RoughCoating
-instance ToElement RoughCoating
+instance ToElement RoughCoating where
+  toElement RoughCoating {..} 
+     =  (tag "roughcoating" 
+     .> ("intIOR", roughCoatingIntIOR)
+     .> ("extIOR", roughCoatingExtIOR)
+     .> ("thickness", roughCoatingThickness)
+     .> ("specularReflectance", roughCoatingSpecularReflectance)
+     .> ("sigmaA", roughCoatingSigmaA))
+     `appendChildren` roughCoatingChild
+     `appendChildren` roughCoatingAlpha
 
 data BumpMap = BumpMap 
    { bumpMapMap  :: Texture
@@ -801,16 +823,18 @@ instance Default Ward
 instance ToElement Ward
    
 data MixtureBSDF = MixtureBSDF 
-   { mixtureBSDFChildren :: [(Double, Child BSDF)]
+   { mixtureBSDFChildren :: NonEmpty (PositiveDouble, Child BSDF)
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
-instance Default MixtureBSDF
+instance Default MixtureBSDF where
+  def = MixtureBSDF $ return (def, def)
+  
 
 instance ToElement MixtureBSDF where
    toElement MixtureBSDF {..} 
-      = let (weights, children) = unzip mixtureBSDFChildren
+      = let (weights, children) = unzip $ NonEmpty.toList mixtureBSDFChildren
       in addChildList (tag "mixturebsdf")
-         $ (primitive "string" (intercalate ", " $ map show weights) # 
+         $ (primitive "string" (intercalate ", " $ map (show . unPositiveDouble) weights) # 
             ("name", "weights" :: Text)) :
            map toElement children
 
@@ -837,9 +861,45 @@ instance ToElement Mask where
   toElement 
     = hideChild "child" 
     . defaultGeneric
-   
+
+data NonTransmission 
+  = NTDiffuse         Diffuse
+  | NTRoughDiffuse    RoughDiffuse
+  | NTDielectric      Dielectric
+  | NTThindielectric  ThinDielectric
+  | NTRoughdielectric RoughDielectric
+  | NTConductor       Conductor
+  | NTRoughconductor  RoughConductor
+  | NTPlastic         Plastic
+  | NTRoughplastic    RoughPlastic
+  | NTCoating         Coating
+  | NTRoughcoating    RoughCoating
+  | NTBumpmap         BumpMap
+  | NTPhong           Phong
+  | NTWard            Ward
+  deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+  
+instance Default NonTransmission
+instance ToElement NonTransmission where
+  toElement x = (tag "" # ("type", typeName)) `appendChildren` forwardToElement x where
+    typeName = case x of
+      NTDiffuse         {} -> "diffuse"
+      NTRoughDiffuse    {} -> "roughdiffuse"
+      NTDielectric      {} -> "dielectric"
+      NTThindielectric  {} -> "thindielectric"
+      NTRoughdielectric {} -> "roughdielectric"
+      NTConductor       {} -> "conductor"
+      NTRoughconductor  {} -> "roughconductor"
+      NTPlastic         {} -> "plastic"
+      NTRoughplastic    {} -> "roughplastic"
+      NTCoating         {} -> "coating"
+      NTRoughcoating    {} -> "roughcoating"
+      NTBumpmap         {} -> "bumpmap"
+      NTPhong           {} -> "phong"
+      NTWard            {} -> "ward"
+-- 
 data Twosided = Twosided 
-   { twosidedChild :: Child BSDF
+   { twosidedChild :: Child NonTransmission
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default Twosided
@@ -853,21 +913,34 @@ data Difftrans = Difftrans
 instance Default Difftrans 
 instance ToElement Difftrans
    
+   
+data ScatteringMethod 
+   = SMMaterial KnownMaterial
+   | SMSA { sigmaS :: Color, sigmaA :: Color}
+   | SMTA { sigmaT :: Color, albedo :: Color}
+   deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+   
+instance Default ScatteringMethod
+instance ToElement ScatteringMethod where
+  toElement e = ($ tag "dummy" ) $ case e of
+    SMMaterial m -> (.> ("material", m))
+    SMSA s a -> (\x -> x .> ("sigmaS", s) .> ("sigmaA", a))
+    SMTA s a -> (\x -> x .> ("sigmaT", s) .> ("albedo", a))
+   
 data HK = HK 
-   { hkMaterial  :: KnownMaterial
-   , hkSigmaS    :: Color
-   , hkSigmaA    :: Color
-   , hkSigmaT    :: Color
-   , hkAlbedo    :: Color
-   , hkThickness :: Double
-   , hkChild     :: Child BSDF
+   { hkScatteringMethod :: ScatteringMethod
+   , hkThickness        :: Double
+   , hkChild            :: Child BSDF
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
    
 instance Default HK
 instance ToElement HK where
-  toElement 
-    = hideChild "child" 
-    . defaultGeneric
+  toElement HK {..}
+    =  (tag "hk"
+    .>  ("thickness", hkThickness)
+    .!> ("child", hkChild))
+    `appendChildren` hkScatteringMethod
+
    
 data Irawan = Irawan
    { irawanFilename             :: FilePath
@@ -914,15 +987,21 @@ instance Default BSDF
 instance ToElement BSDF
 
 data PointLight = PointLight
-   { pointLightToWorld        :: Transform
-   , pointLightPosition       :: Point
+   { pointLightLocation       :: Either Transform Point
    , pointLightIntensity      :: Spectrum
-   , pointLightSamplingWeight :: Double
+   , pointLightSamplingWeight :: NonZero
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
    
 instance Default PointLight
-instance ToElement PointLight     
-   
+instance ToElement PointLight where
+  toElement PointLight {..}
+    =  ($ tag "point"     
+    .> ("intensity"     , pointLightIntensity     )
+    .> ("samplingWeight", pointLightSamplingWeight))
+    $ case pointLightLocation of
+      Left  t -> (.> ("toWorld", t))
+      Right t -> (.> ("position", t))
+    
 data AreaLight = AreaLight 
    { areaLightRadiance       :: Spectrum
    , areaLightSamplingWeight :: Double
@@ -2029,47 +2108,47 @@ instance Default Integrator
 instance ToElement Integrator
 
 data Independent = Independent
-   { independentSampleCount :: Integer
+   { independentSampleCount :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Independent
 instance ToElement Independent
 
 data Stratified = Stratified
-   { stratifiedSampleCount :: Integer
-   , stratifiedDimension   :: Integer
+   { stratifiedSampleCount :: Whole
+   , stratifiedDimension   :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Stratified
 instance ToElement Stratified
 
 data LDSampler = LDSampler
-   { ldSamplerSampleCount :: Integer
-   , ldSamplerDimension   :: Integer
+   { ldSamplerSampleCount :: Whole
+   , ldSamplerDimension   :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default LDSampler
 instance ToElement LDSampler
 
 data Halton = Halton
-   { haltonSampleCount :: Integer
-   , haltonScramble    :: Integer
+   { haltonSampleCount :: Whole
+   , haltonScramble    :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Halton
 instance ToElement Halton
 
 data Hammersley = Hammersley
-   { hammersleySampleCount :: Integer
-   , hammersleyScramble    :: Integer
+   { hammersleySampleCount :: Whole
+   , hammersleyScramble    :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Hammersley
 instance ToElement Hammersley
 
 data Sobol = Sobol 
-   { sobolSampleCount :: Integer
-   , sobolScramble    :: Integer
+   { sobolSampleCount :: Whole
+   , sobolScramble    :: Whole
    } deriving (Show, Eq, Read, Ord, Generic, Data, Typeable)
 
 instance Default Sobol
