@@ -25,6 +25,9 @@ default (Text, Integer, Double)
 
 type Name = Text
 
+-- Get rid of KnownMaterial as a way to store the index of refraction
+-- 
+
 --instance Show (a -> b) where
 --  show _ = "show f"
 

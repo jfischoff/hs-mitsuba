@@ -25,6 +25,8 @@ import Data.Maybe
 import Control.Lens
 import Data.Data
 import Data.Default.Generics
+import qualified Data.Map as M
+import qualified Data.List.NonEmpty as NonEmpty
 default (Text, Integer, Double)
 
 -- TODO pull of the xml into it's own file
@@ -83,13 +85,13 @@ case_Ref_toXML = toXML (Ref "thing") @?= [xmlQQ|<ref id="thing" />=|]
 -- __case_Child_toXML = 
    
 case_WavelengthStyle_toAttributeValue = 
-   toAttributeValue (WavelengthStyle 
-                        [ (400, 0.56)
-                        , (500, 0.18)
-                        , (600, 0.58)
-                        , (700, 0.24)
+   toAttributeValue (WavelengthStyle $ AtLeastTwo $ M.fromList 
+                        [ (PositiveDouble 400, 0.56)
+                        , (PositiveDouble 500, 0.18)
+                        , (PositiveDouble 600, 0.58)
+                        , (PositiveDouble 700, 0.24)
                         ]) @?= 
-      "400:0.56, 500:0.18, 600:0.58, 700:0.24"
+      "400.0:0.56, 500.0:0.18, 600.0:0.58, 700.0:0.24"
 
 case_InternalSpectralFormat_toAttributeValue = 
   toAttributeValue (InternalSpectralFormat 0.2 0.2 0.8 0.4 0.6 0.5 0.1 0.9 0.4 0.2) @?= 
@@ -232,7 +234,7 @@ actualSphere0
       ( STSphere 
       $ Sphere 
         (Point 0 0 0)
-        1.0
+        (PositiveDouble 1.0)
         True
       ) 
       $ CNested $ BSDFDiffuse $ Diffuse $ CSpectrum $ SUniform 1.0
@@ -272,7 +274,7 @@ actualSphereBlackBody
       ( STSphere 
       $ Sphere 
         (Point 0 1 0)
-        1.0
+        (PositiveDouble 1.0)
         True
       ) 
       (CNested diffuse)
@@ -311,8 +313,8 @@ case_sphere_blackbody_toXML
   |]
 
 actualCylinder 
-  = cylinder 0.3 
-  & bsdf .~ twosided diffuse 
+  = cylinder (PositiveDouble 0.3) 
+  & bsdf .~ twosided (NTDiffuse $ Diffuse $ CSpectrum $ SUniform 1.0)
   
 case_cylinder_toXML 
   = actualCylinder `assertElement` [xmlQQ|
@@ -452,11 +454,13 @@ actualObj1
   = obj "myShape.obj"
   & bsdf .~ (BSDFRoughplastic $ RoughPlastic 
     { roughPlasticAlpha               
-      = ADUniformAlpha 
-      $ UniformAlpha Beckmann 
+      = UniformAlpha Beckmann 
       $ UniformLuminance 1.0
-    , roughPlasticIntIOR              = RKM $ Vacuum
-    , roughPlasticExtIOR              = RKM $ Water
+    , roughPlasticRefraction = RefractionPair
+          { refractionPairIntIOR = RKM Vacuum
+          , refractionPairExtIOR = RKM Water
+          }
+
     , roughPlasticSpecularReflectance = CSpectrum $ SUniform 2
     , roughPlasticDiffuseReflectance  = CSpectrum 
                                       $ SRGB 
@@ -488,8 +492,8 @@ case_obj_1_toXML
 
 actualObj2 
   = objMultiMaterial "myShape.obj"
-  & objMaterialMap . at "Glass" .~ Just (CNested $ dielectric 1.5 1.5)
-  & objMaterialMap . at "Water" .~ Just (CNested $ dielectric 1.333 1.333)
+  & objMaterialMap . at "Glass" .~ Just (CNested $ dielectric (RefractiveValue 1.5) (RefractiveValue 1.5))
+  & objMaterialMap . at "Water" .~ Just (CNested $ dielectric (RefractiveValue 1.333) (RefractiveValue 1.333))
 
 -- Third
 -- This is different
@@ -755,10 +759,7 @@ actualRoughDiffuse
       $ RGBLTriple
       $ RGBTriple 1.0 0.5 0.0
       )
-      ( CSpectrum 
-      $ SRGB
-      $ RGBLTriple
-      $ RGBTriple 0.1 0.05 0.0
+      ( UniformLuminance 1.0
       )
       True
 
@@ -766,7 +767,7 @@ case_roughdiffuse_toXML
   = actualRoughDiffuse `assertElement` [xmlQQ|
       <bsdf type="roughdiffuse">
         <rgb name="reflectance" value="1.000, 0.500, 0.000" />
-        <rgb name="alpha"       value="0.100, 0.050, 0.000" />
+        <float name="alpha"       value="1.0" />
         <boolean name="useFastApprox" value="true" />
       </bsdf>
   |]
@@ -859,8 +860,8 @@ actualRoughDielectric1
              , bitmapChannel       = R
              }
                   
-      , roughDielectricIntIOR                = IOR 1.5046
-      , roughDielectricExtIOR                = IOR 1.0
+      , roughDielectricIntIOR                = IOR $ RefractiveValue 1.5046
+      , roughDielectricExtIOR                = IOR $ RefractiveValue 1.0
       , roughDielectricSpecularReflectance   = CSpectrum $ SUniform 1.0
       , roughDielectricSpecularTransmittance = CSpectrum $ SUniform 1.0
       }
@@ -948,7 +949,7 @@ actualRoughConductor
             }
                                    
       , roughConductorConductance  = CConductorType Aluminium
-      , roughConductorExtEta       = def
+      , roughConductorExtEta       = RKM Vacuum
       , roughConductorSpecularReflectance = def
       }
 
@@ -967,8 +968,10 @@ case_roughconductor_toXML
 actualPlastic 
   = BSDFPlastic
   $ Plastic
-     { plasticIntIOR              = IOR 1.9
-     , plasticExtIOR              = IOR 1.0
+     { plasticRefraction  = RefractionPair
+            { refractionPairIntIOR = IOR $ RefractiveValue 1.9
+            , refractionPairExtIOR = IOR $ RefractiveValue 1.0
+            }
      , plasticSpecularReflectance = def
      , plasticDiffuseReflectance  
          = CSpectrum 
@@ -994,8 +997,7 @@ actualRoughPlastic
   = BSDFRoughplastic
   $ RoughPlastic 
       { roughPlasticAlpha               
-          = ADUniformAlpha 
-          $ UniformAlpha Beckmann 
+          = UniformAlpha Beckmann 
           $ TextureLuminance 
           $ TScale 
           $ ScaleTexture 
@@ -1017,8 +1019,11 @@ actualRoughPlastic
               )
               0.6
              
-      , roughPlasticIntIOR              = IOR 1.61
-      , roughPlasticExtIOR              = IOR 1.0
+      , roughPlasticRefraction = RefractionPair
+                { refractionPairIntIOR = IOR $ RefractiveValue 1.61
+                , refractionPairExtIOR = IOR $ RefractiveValue 1.0 
+                }
+
       , roughPlasticSpecularReflectance = def
       , roughPlasticDiffuseReflectance  = CSpectrum $ SUniform 0
       , roughPlasticNonlinear           = def
@@ -1051,12 +1056,15 @@ case_roughplastic_toXML
   </bsdf>
   |]
 
+
 actualCoating :: BSDF
 actualCoating 
   = BSDFCoating
   $ Coating
-    { coatingIntIOR             = IOR 1.7
-    , coatingExtIOR             = IOR 1.0
+    { coatingRefraction = RefractionPair 
+      { refractionPairIntIOR = IOR $ RefractiveValue 1.7
+      , refractionPairExtIOR = IOR $ RefractiveValue 1.0
+      }
     , coatingThickness          = 1.0
     , coatingSigmaA             = CSpectrum $ SUniform 0.0
     , coatingSpecularReflection = CSpectrum $ SUniform 1.0
@@ -1068,7 +1076,7 @@ actualCoating
                 = ADUniformAlpha
                 $ UniformAlpha Beckmann $ UniformLuminance 0.1
             , roughConductorConductance  = CConductorType Copper
-            , roughConductorExtEta       = def
+            , roughConductorExtEta       = RKM Vacuum
             , roughConductorSpecularReflectance = def
             }
     }
@@ -1164,9 +1172,9 @@ case_ward_toXML
 
 actualMixtureBSDF 
   = BSDFMixturebsdf 
-  $ MixtureBSDF
-      [ (0.7, CRef $ Ref "child0")
-      , (0.3, CRef $ Ref "child1")
+  $ MixtureBSDF $ NonEmpty.fromList
+      [ (PositiveDouble 0.7, CRef $ Ref "child0")
+      , (PositiveDouble 0.3, CRef $ Ref "child1")
       ]
 
 case_mixturebsdf_toXML 
@@ -1246,11 +1254,7 @@ case_difftrans_toXML
 actualHK 
   = BSDFHk
   $ HK 
-    { hkMaterial  = Hydrogen
-    , hkSigmaS    = CSpectrum $ SUniform 1.0
-    , hkSigmaA    = CSpectrum $ SUniform 2.0
-    , hkSigmaT    = CSpectrum $ SUniform 3.0
-    , hkAlbedo    = CSpectrum $ SUniform 4.0
+    { hkScatteringMethod = SMMaterial Hydrogen
     , hkThickness = 1.0
     , hkChild     = CRef $ Ref "child"
     }
@@ -1258,12 +1262,8 @@ actualHK
 case_hk_toXML 
   = actualHK `assertElement` [xmlQQ|
   <bsdf type="hk">
-    <spectrum name="sigmaS" value="1.0"/>
-    <spectrum name="sigmaT" value="3.0"/>
     <string name="material" value="hydrogen"/>
-    <spectrum name="sigmaA" value="2.0"/>
     <float name="thickness" value="1.0"/>
-    <spectrum name="albedo" value="4.0"/>
     <ref id="child"/>  
   </bsdf>
   |]
@@ -1664,10 +1664,9 @@ case_volcache_toXML
 actualPointLight 
   = EPoint
   $ PointLight
-     { pointLightToWorld        = mempty
-     , pointLightPosition       = Point 1 2 3
+     { pointLightLocation       = Right $ Point 1 2 3
      , pointLightIntensity      = SUniform 1.0
-     , pointLightSamplingWeight = 2.0
+     , pointLightSamplingWeight = NonZero 2.0
      }
     
 case_pointlight_toXML 
@@ -1675,7 +1674,6 @@ case_pointlight_toXML
     <emitter type="point">
       <spectrum name="intensity" value="1.0"/>
       <float name="samplingWeight" value="2.0"/>
-      <transform name="toWorld"/>
       <point name="position" z="3.0" x="1.0" y="2.0"/>
     </emitter>
   |]
@@ -2102,8 +2100,8 @@ actualIrradianceMeter
         , sensorSampler = Just 
             ( SSobol 
               ( Sobol 
-                  { sobolSampleCount = 0
-                  , sobolScramble = 0
+                  { sobolSampleCount = Whole 0
+                  , sobolScramble = Whole 0
                   }
               )
             )
@@ -2607,7 +2605,7 @@ case_multichannel_toXML
   |]
 
 actualIndependent = SIndependent $ Independent 
-  { independentSampleCount = 1
+  { independentSampleCount = Whole 1
   }
 
 case_independent 
@@ -2620,8 +2618,8 @@ case_independent
 actualStratified 
   = SStratified
   $ Stratified
-      { stratifiedSampleCount = 1
-      , stratifiedDimension   = 2
+      { stratifiedSampleCount = Whole 1
+      , stratifiedDimension   = Whole 2
       }
 
 case_stratified 
@@ -2635,8 +2633,8 @@ case_stratified
 actualLdsampler 
   = SLdsampler
   $ LDSampler
-     { ldSamplerSampleCount = 1
-     , ldSamplerDimension   = 2
+     { ldSamplerSampleCount = Whole 1
+     , ldSamplerDimension   = Whole 2
      }
 
 case_ldsampler
@@ -2650,8 +2648,8 @@ case_ldsampler
 actualHalton 
   = SHalton
   $ Halton
-     { haltonSampleCount = 1
-     , haltonScramble    = 2
+     { haltonSampleCount = Whole 1
+     , haltonScramble    = Whole 2
      }
 
 case_halton 
@@ -2665,8 +2663,8 @@ case_halton
 actualHammersley 
   = SHammersley
   $ Hammersley
-     { hammersleySampleCount = 1
-     , hammersleyScramble    = 2
+     { hammersleySampleCount = Whole 1
+     , hammersleyScramble    = Whole 2
      }
 
 case_Hammersley 
@@ -2680,8 +2678,8 @@ case_Hammersley
 actualSobol
    = SSobol
    $ Sobol
-      { sobolSampleCount = 1
-      , sobolScramble    = 2
+      { sobolSampleCount = Whole 1
+      , sobolScramble    = Whole 2
       }
 
 case_Sobol

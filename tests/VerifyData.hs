@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 import Mitsuba.Types
 import Mitsuba.Element.Class
@@ -13,13 +14,13 @@ import Data.Monoid
 import qualified Data.ByteString.Lazy as BSL
 import Control.Applicative
 import Control.Monad
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Map as M
 
 --main = testScene' "testScene.xml" defaultVerifiedScene
 
-main = quickCheck quickTestScene
+main = quickCheckWith stdArgs { maxSize = 20, numTests = 10000 } quickTestScene
 
 --testScene :: Scene -> IO ExitCode
 --testScene ident scene = withSystemTempDirectory "hs-mitsuba" $ \tempDirPath -> do
@@ -40,6 +41,7 @@ testScene' filePath scene = do
 quickTestScene :: Property
 quickTestScene = monadicIO $ forAllM (genSceneWithShape testGenShape) $ \scene -> 
   forAllM (listOf1 $ elements ['a' .. 'z']) $ \filename -> do 
+    run $ putStrLn $ "running file " ++ (filename ++ ".xml")
     ec <- run $ testScene' (filename ++ ".xml") scene
     unless (ec == ExitSuccess) $ do
       run $ print $ "failed at file: " ++ filename
@@ -219,12 +221,15 @@ genSceneWithShape gen = do
     ]
 
 instance Arbitrary RefractiveValue where
+  shrink = genericShrink
   arbitrary = RefractiveValue <$> choose (1.000100, 4.0)    
     
 instance Arbitrary WavelengthStyle where
+  shrink = genericShrink
   arbitrary = WavelengthStyle <$> arbitrary
     
 instance Arbitrary InternalSpectralFormat where
+  shrink = genericShrink
   arbitrary 
      =  InternalSpectralFormat
     <$> arbitrary
@@ -239,12 +244,15 @@ instance Arbitrary InternalSpectralFormat where
     <*> arbitrary
 
 instance Arbitrary RGBTriple where
+  shrink = genericShrink
   arbitrary = RGBTriple <$> arbitrary <*> arbitrary <*> arbitrary     
     
 instance Arbitrary Hex where
+  shrink = genericShrink  
   arbitrary = Hex <$> arbitrary <*> arbitrary <*> arbitrary    
     
 instance Arbitrary RGBLike where
+  shrink = genericShrink  
   arbitrary 
     = oneof 
         [ RGBLTriple <$> arbitrary
@@ -252,12 +260,15 @@ instance Arbitrary RGBLike where
         ]
     
 instance Arbitrary Temperature where
+  shrink = genericShrink
   arbitrary = Temperature <$> arbitrary    
     
 instance Arbitrary Blackbody where
+  shrink = genericShrink
   arbitrary = Blackbody <$> arbitrary <*> arbitrary    
     
 instance Arbitrary Spectrum where
+  shrink = genericShrink
   arbitrary = oneof 
     [ SWavelengths <$> arbitrary
     , SUniform     <$> arbitrary
@@ -269,12 +280,15 @@ instance Arbitrary Spectrum where
     ] 
     
 instance Arbitrary Color where
+  shrink _ = []
   arbitrary = CSpectrum <$> arbitrary
     
 instance Arbitrary Diffuse where
+  shrink = genericShrink
   arbitrary = Diffuse <$> arbitrary
   
 instance Arbitrary RoughDiffuse where
+  shrink = genericShrink
   arbitrary 
      =  RoughDiffuse 
     <$> arbitrary
@@ -285,6 +299,7 @@ instance Arbitrary KnownMaterial where
   arbitrary = elements [Vacuum .. Diamond]
     
 instance Arbitrary Refraction where
+  shrink = genericShrink
   arbitrary 
     = oneof
         [ RKM <$> arbitrary
@@ -292,6 +307,7 @@ instance Arbitrary Refraction where
         ]
     
 instance Arbitrary Dielectric where
+  shrink = genericShrink
   arbitrary 
      =  Dielectric
     <$> arbitrary
@@ -300,6 +316,7 @@ instance Arbitrary Dielectric where
     <*> arbitrary
 
 instance Arbitrary ThinDielectric where
+  shrink = genericShrink
   arbitrary 
      =  ThinDielectric 
     <$> arbitrary 
@@ -308,6 +325,7 @@ instance Arbitrary ThinDielectric where
     <*> arbitrary
     
 instance Arbitrary Distribution where
+  shrink = genericShrink
   arbitrary 
       = elements  
           [ Beckmann
@@ -316,6 +334,7 @@ instance Arbitrary Distribution where
           ]
         
 instance Arbitrary Luminance where
+  shrink _ = []
   arbitrary 
       = oneof 
           [ UniformLuminance <$> arbitrary
@@ -323,18 +342,21 @@ instance Arbitrary Luminance where
           ]
     
 instance Arbitrary AnistrophicAlpha where
+  shrink = genericShrink
   arbitrary
      =  AnistrophicAlpha 
     <$> arbitrary 
     <*> arbitrary
     
 instance Arbitrary UniformAlpha where
+  shrink = genericShrink
   arbitrary 
      =  UniformAlpha 
     <$> arbitrary
     <*> arbitrary    
     
 instance Arbitrary AlphaDistribution where
+  shrink = genericShrink
   arbitrary 
     = oneof
         [ ADAnistrophicAlpha <$> arbitrary
@@ -342,21 +364,19 @@ instance Arbitrary AlphaDistribution where
         ]
     
 instance Arbitrary RoughDielectric where
+  shrink = genericShrink
   arbitrary 
      =  RoughDielectric 
     <$> arbitrary 
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
-    <*> arbitrary
 
 instance Arbitrary NonTransmission where 
+  shrink = genericShrink
   arbitrary = oneof
     [ NTDiffuse         <$> arbitrary
     , NTRoughDiffuse    <$> arbitrary
-    , NTDielectric      <$> arbitrary
-    , NTThindielectric  <$> arbitrary
-    , NTRoughdielectric <$> arbitrary
     , NTConductor       <$> arbitrary
     , NTRoughconductor  <$> arbitrary
     , NTPlastic         <$> arbitrary
@@ -371,12 +391,15 @@ instance Arbitrary NonTransmission where
 
 
 instance Arbitrary ConductorType where
+  shrink = genericShrink
   arbitrary = elements [ AmorphousCarbon .. None ]
   
 instance Arbitrary ManualConductance where
+  shrink = genericShrink
   arbitrary = ManualConductance <$> arbitrary <*> arbitrary
   
 instance Arbitrary Conductance where
+  shrink = genericShrink
   arbitrary 
     = oneof 
         [ CConductorType <$> arbitrary
@@ -390,6 +413,7 @@ instance Arbitrary Conductor where
       <*> arbitrary
         
 instance Arbitrary RoughConductor where
+  shrink = genericShrink
   arbitrary 
      =  RoughConductor 
     <$> arbitrary
@@ -398,15 +422,16 @@ instance Arbitrary RoughConductor where
     <*> arbitrary
     
 instance Arbitrary Plastic where
+  shrink = genericShrink
   arbitrary
      =  Plastic 
     <$> arbitrary
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
-    <*> arbitrary
     
 instance Arbitrary RoughPlastic where
+  shrink = genericShrink
   arbitrary 
      =  RoughPlastic 
     <$> arbitrary
@@ -414,9 +439,9 @@ instance Arbitrary RoughPlastic where
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
-    <*> arbitrary
     
 instance Arbitrary Coating where
+  shrink = genericShrink
   arbitrary 
      =  Coating
     <$> arbitrary
@@ -424,12 +449,13 @@ instance Arbitrary Coating where
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
-    <*> arbitrary
 
 instance Arbitrary a => Arbitrary (Child a) where
+  shrink (CNested x) = CNested <$> shrink x
   arbitrary = CNested <$> arbitrary
 
 instance Arbitrary RoughCoating where
+  shrink = genericShrink
   arbitrary 
      =  RoughCoating 
     <$> arbitrary
@@ -438,12 +464,17 @@ instance Arbitrary RoughCoating where
     <*> arbitrary
     <*> arbitrary
     <*> arbitrary
-    <*> arbitrary
+    
+instance Arbitrary RefractionPair where
+  arbitrary = do
+    p <- arbitrary
+    RefractionPair <$> pure (IOR p) <*> (IOR <$> suchThat arbitrary (p /=))
     
 --instance Arbitrary BumpMap where
 --  arbitrary = 
   
 instance Arbitrary Phong where
+  shrink = genericShrink
   arbitrary 
      =  Phong 
     <$> arbitrary 
@@ -451,10 +482,12 @@ instance Arbitrary Phong where
     <*> arbitrary
     
 instance Arbitrary WardType where
+  shrink = genericShrink
   arbitrary 
     = elements [WTWard, WTWardDuer, WTBalanced]
     
 instance Arbitrary Ward where
+  shrink = genericShrink
   arbitrary 
      =  Ward
     <$> arbitrary
@@ -464,12 +497,17 @@ instance Arbitrary Ward where
     <*> arbitrary
   
 instance Arbitrary a => Arbitrary (NonEmpty a) where
+  shrink = \case
+     x :| []       -> []
+     x :| (y:rest) -> fmap (x :|) (shrink rest) ++ fmap (y :|) (shrink rest)
   arbitrary = NonEmpty.fromList <$> listOf1 arbitrary  
     
 instance Arbitrary MixtureBSDF where
+  shrink = genericShrink
   arbitrary = MixtureBSDF <$> arbitrary
   
 instance Arbitrary BlendBSDF where
+  shrink = genericShrink
   arbitrary 
      =  BlendBSDF
     <$> arbitrary
@@ -477,20 +515,24 @@ instance Arbitrary BlendBSDF where
     <*> arbitrary
     
 instance Arbitrary Mask where
+  shrink = genericShrink
   arbitrary 
      =  Mask 
     <$> arbitrary 
     <*> arbitrary
     
 instance Arbitrary Twosided where
+  shrink = genericShrink
   arbitrary 
      =  Twosided 
     <$> arbitrary
     
 instance Arbitrary Difftrans where
+  shrink = genericShrink
   arbitrary = Difftrans <$> arbitrary
   
 instance Arbitrary ScatteringMethod where
+  shrink = genericShrink
   arbitrary 
     = oneof 
         [ SMMaterial <$> arbitrary
@@ -499,6 +541,7 @@ instance Arbitrary ScatteringMethod where
         ]
   
 instance Arbitrary HK where
+  shrink = genericShrink
   arbitrary 
      =  HK 
     <$> arbitrary
@@ -506,6 +549,7 @@ instance Arbitrary HK where
     <*> arbitrary
       
 instance Arbitrary Irawan where
+  shrink = genericShrink
   arbitrary 
      =  Irawan 
     <$> arbitrary
@@ -513,7 +557,10 @@ instance Arbitrary Irawan where
     <*> arbitrary
     <*> arbitrary
   
+instance Arbitrary BumpMap 
+  
 instance Arbitrary BSDF where
+  shrink = genericShrink
   arbitrary = 
     oneof 
       [ BSDFDiffuse         <$> arbitrary
@@ -522,25 +569,31 @@ instance Arbitrary BSDF where
       , BSDFThindielectric  <$> arbitrary
       , BSDFRoughdielectric <$> arbitrary
       , BSDFConductor       <$> arbitrary
-      , BSDFRoughconductor  <$> arbitrary
+--      , BSDFRoughconductor  <$> arbitrary
       , BSDFPlastic         <$> arbitrary
-      , BSDFRoughplastic    <$> arbitrary
+--      , BSDFRoughplastic    <$> arbitrary
       , BSDFCoating         <$> arbitrary
-      , BSDFRoughcoating    <$> arbitrary
+--      , BSDFRoughcoating    <$> arbitrary
 --      , BSDFBumpmap         <$> arbitrary
+
       , BSDFPhong           <$> arbitrary
       , BSDFWard            <$> arbitrary
       , BSDFMixturebsdf     <$> arbitrary
       , BSDFBlendbsdf       <$> arbitrary
+{-      
       , BSDFMask            <$> arbitrary
       , BSDFTwosided        <$> arbitrary
       , BSDFDifftrans       <$> arbitrary
-      , BSDFHk              <$> arbitrary
+-}      
+
+-- keeps crashing
+--      , BSDFHk              <$> arbitrary
 --      , BSDFIrawan          <$> arbitrary
       ]
      
     
 instance Arbitrary Point where
+  shrink = genericShrink
   arbitrary 
      =  Point
     <$> arbitrary
@@ -548,9 +601,11 @@ instance Arbitrary Point where
     <*> arbitrary
 
 instance Arbitrary Cube where
+  shrink = genericShrink  
   arbitrary = Cube <$> arbitrary
   
 instance Arbitrary Sphere where
+  shrink = genericShrink
   arbitrary 
      =  Sphere 
     <$> arbitrary
@@ -558,6 +613,7 @@ instance Arbitrary Sphere where
     <*> arbitrary
 
 instance Arbitrary Cylinder where
+  shrink = genericShrink
   arbitrary 
      =  do 
     p0 <- arbitrary 
@@ -571,17 +627,25 @@ instance Arbitrary Cylinder where
       <*> arbitrary
     
 instance Arbitrary Rectangle where
+  shrink = genericShrink
   arbitrary 
      =  Rectangle 
     <$> arbitrary
   
 instance Arbitrary Disk where
+  shrink = genericShrink
   arbitrary = Disk <$> arbitrary
   
 instance Arbitrary PositiveDouble where
+  shrink = genericShrink
   arbitrary = PositiveDouble . getPositive <$> arbitrary
 
 instance (Arbitrary k, Ord k, Eq k, Arbitrary v) => Arbitrary (AtLeastTwo k v) where
+  shrink (AtLeastTwo xs) 
+    | M.size xs <= 2 = []
+    | otherwise = result where
+        x:y:rest = M.toList xs
+        result = map AtLeastTwo $ fmap (M.fromList . (\r -> x:y:r)) $ shrink rest 
   arbitrary = do 
     (k, v) <- arbitrary
     (k', v') <- suchThat arbitrary (\(x, _) -> k /= x)

@@ -53,6 +53,9 @@ instance Default PositiveDouble where
   
 newtype NormalizedDouble = NormalizedDouble { unNormalizedDouble :: Double } 
   deriving (Show, Eq, Ord, Read, Data, Generic, Typeable, ToElement)
+  
+newtype RoughnessAlpha = RoughnessAlpha { unRoughnessAlpha :: Double }
+  deriving (Show, Eq, Ord, Read, Data, Generic, Typeable, ToElement)
 
 type Wavelength = Double
 type Amplitude  = Double

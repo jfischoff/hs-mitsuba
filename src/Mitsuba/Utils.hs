@@ -73,7 +73,7 @@ instance HasBSDF OBJLeaf where
           Left  x -> Left  <$> bsdf f x
           Right x -> Right <$> pure x
     
-twosided :: BSDF -> BSDF
+twosided :: NonTransmission -> BSDF
 twosided = BSDFTwosided . Twosided . CNested
 
 diffuse :: BSDF
@@ -82,7 +82,7 @@ diffuse = BSDFDiffuse $ Diffuse $ CSpectrum $ SUniform 1.0
 class DielectricI a where
   dielectric :: a -> a -> BSDF
   
-instance DielectricI Double where
+instance DielectricI RefractiveValue where
   dielectric x y = BSDFDielectric $ Dielectric 
      { dielectricIntIOR                = IOR x
      , dielectricExtIOR                = IOR y
@@ -124,7 +124,7 @@ shapeLeaf st = SShapeLeaf
 cube :: Shape
 cube = shapeLeaf $ STCube $ Cube False
 
-sphere :: Double -> Shape 
+sphere :: PositiveDouble -> Shape 
 sphere radius 
   = SShapeLeaf 
   $ ShapeLeaf 
@@ -137,7 +137,7 @@ sphere radius
     Nothing
     Nothing
 
-cylinder :: Double -> Shape 
+cylinder :: PositiveDouble -> Shape 
 cylinder radius 
   = SShapeLeaf
   $ ShapeLeaf

@@ -445,7 +445,7 @@ instance ToAttributeValue KnownMaterial where
       Benzene             -> "benzene"
       SiliconeOil         -> "silicone oil"
       Bromine             -> "bromine"
-      WaterIce            -> "waterIce"
+      WaterIce            -> "water ice"
       FusedQuartz         -> "fused quartz"
       Pyrex               -> "pyrex"
       AcrylicGlass        -> "acrylic glass"
@@ -467,6 +467,14 @@ data Refraction
 instance Default Refraction   
 instance ToElement Refraction where
    toElement = forwardToElement
+   
+data RefractionPair = RefractionPair 
+  { refractionPairIntIOR :: Refraction
+  , refractionPairExtIOR :: Refraction
+  } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
+  
+instance Default RefractionPair   
+instance ToElement RefractionPair
 
 data Dielectric = Dielectric 
    { dielectricIntIOR                :: Refraction
@@ -476,7 +484,13 @@ data Dielectric = Dielectric
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default Dielectric
-instance ToElement Dielectric
+instance ToElement Dielectric where
+  toElement Dielectric {..} 
+    =  tag "dielectric"
+    .> ("intIOR", dielectricIntIOR)
+    .> ("extIOR", dielectricExtIOR)
+    .> ("specularReflectance"  , dielectricSpecularReflectance)
+    .> ("specularTransmittance", dielectricSpecularTransmittance)
 
 data ThinDielectric = ThinDielectric
    { thinDielectricIntIOR                :: Refraction
@@ -486,7 +500,13 @@ data ThinDielectric = ThinDielectric
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default ThinDielectric
-instance ToElement ThinDielectric
+instance ToElement ThinDielectric where
+  toElement ThinDielectric {..} 
+    =  tag "thindielectric"
+    .> ("intIOR"               , thinDielectricIntIOR)
+    .> ("extIOR"               , thinDielectricExtIOR)
+    .> ("specularReflectance"  , thinDielectricSpecularReflectance)
+    .> ("specularTransmittance", thinDielectricSpecularTransmittance)
    
 data Distribution 
    = Beckmann
@@ -528,6 +548,7 @@ instance Default AnistrophicAlpha
 
 data UniformAlpha = UniformAlpha 
   { uniformAlphaDistribution :: Distribution
+  -- TODO this must be in a range 0 - 4
   , uniformAlphaAlpha        :: Luminance
   } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
   
@@ -551,8 +572,7 @@ instance Default AlphaDistribution
    
 data RoughDielectric = RoughDielectric 
    { roughDielectricAlpha                 :: AlphaDistribution
-   , roughDielectricIntIOR                :: Refraction
-   , roughDielectricExtIOR                :: Refraction
+   , roughDielectricRefraction            :: RefractionPair
    , roughDielectricSpecularReflectance   :: Color
    , roughDielectricSpecularTransmittance :: Color
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
@@ -562,8 +582,7 @@ instance ToElement RoughDielectric where
    toElement RoughDielectric {..} 
        =  tag "roughDielectric" 
       ..> roughDielectricAlpha
-      .>  ("intIOR"               , roughDielectricIntIOR)
-      .>  ("extIOR"               , roughDielectricExtIOR)
+      ..> roughDielectricRefraction
       .>  ("specularReflectance"  , roughDielectricSpecularReflectance)
       .>  ("specularTransmittance", roughDielectricSpecularTransmittance)
 
@@ -592,7 +611,6 @@ data ConductorType
    | Niobium
    | Nickel
    | Rhodium
-   | Selenium
    | HexagonalSiliconCarbide
    | TinTelluride
    | Tantalum
@@ -634,7 +652,8 @@ instance ToAttributeValue ConductorType where
       Niobium                        -> "Nb"
       Nickel                         -> "Ni_palik"
       Rhodium                        -> "Rh"
-      Selenium                       -> "Se"
+-- This causes a crash
+--      Selenium                       -> "Se"
       HexagonalSiliconCarbide        -> "SiC"
       TinTelluride                   -> "SnTe"
       Tantalum                       -> "Ta"
@@ -708,20 +727,27 @@ instance ToElement RoughConductor where
    
 
 data Plastic = Plastic
-   { plasticIntIOR              :: Refraction
-   , plasticExtIOR              :: Refraction
+   { plasticRefraction          :: RefractionPair
    , plasticSpecularReflectance :: Color
    , plasticDiffuseReflectance  :: Color
    , plasticNonlinear           :: Bool
    } deriving(Eq, Show, Ord, Read, Data, Typeable, Generic)
 
 instance Default Plastic
-instance ToElement Plastic
+instance ToElement Plastic where
+  toElement Plastic {..}
+    =  tag "plastic"
+    ..> plasticRefraction
+    .>  ("specularReflectance", plasticSpecularReflectance)
+    .>  ("diffuseReflectance" , plasticDiffuseReflectance)
+    .>  ("nonlinear"          , plasticNonlinear)
 
+-- TODO the atleast the plastic roughness must between 0-0.5 it is 
+-- for a specific distribution
+-- Beckmann is 0-4
 data RoughPlastic = RoughPlastic
    { roughPlasticAlpha               :: UniformAlpha
-   , roughPlasticIntIOR              :: Refraction
-   , roughPlasticExtIOR              :: Refraction
+   , roughPlasticRefraction          :: RefractionPair
    , roughPlasticSpecularReflectance :: Color
    , roughPlasticDiffuseReflectance  :: Color
    , roughPlasticNonlinear           :: Bool
@@ -732,15 +758,15 @@ instance ToElement RoughPlastic where
   toElement RoughPlastic {..} 
     =   tag "roughplastic"
     ..> roughPlasticAlpha
-    .>  ("intIOR"             , roughPlasticIntIOR)
-    .>  ("extIOR"             , roughPlasticExtIOR)
+    ..> roughPlasticRefraction
     .>  ("specularReflectance", roughPlasticSpecularReflectance)
     .>  ("diffuseReflectance" , roughPlasticDiffuseReflectance)
     .>  ("nonlinear"          , roughPlasticNonlinear)
 
+-- Refraction type should be both
+-- because they must be different
 data Coating = Coating
-   { coatingIntIOR             :: Refraction
-   , coatingExtIOR             :: Refraction
+   { coatingRefraction         :: RefractionPair
    , coatingThickness          :: Double
    , coatingSigmaA             :: Color
    , coatingSpecularReflection :: Color
@@ -750,14 +776,17 @@ data Coating = Coating
 
 instance Default Coating
 instance ToElement Coating where
-  toElement 
-    = hideChild "child"
-    . defaultGeneric 
+  toElement Coating {..}
+    =   tag "coating"
+    ..> coatingRefraction
+    .>  ("thickness"         , coatingThickness)
+    .>  ("sigmaA"            , coatingSigmaA)
+    .>  ("specularReflection", coatingSpecularReflection)
+    .!> ("child"             , coatingChild)
       
 data RoughCoating = RoughCoating
-   { roughCoatingAlpha               :: AlphaDistribution
-   , roughCoatingIntIOR              :: Refraction
-   , roughCoatingExtIOR              :: Refraction
+   { roughCoatingAlpha               :: UniformAlpha
+   , roughCoatingRefraction       :: RefractionPair
    , roughCoatingThickness           :: Double
    , roughCoatingSigmaA              :: Color
    , roughCoatingSpecularReflectance :: Color
@@ -767,12 +796,11 @@ data RoughCoating = RoughCoating
 instance Default RoughCoating
 instance ToElement RoughCoating where
   toElement RoughCoating {..} 
-     =  (tag "roughcoating" 
-     .> ("intIOR", roughCoatingIntIOR)
-     .> ("extIOR", roughCoatingExtIOR)
-     .> ("thickness", roughCoatingThickness)
-     .> ("specularReflectance", roughCoatingSpecularReflectance)
-     .> ("sigmaA", roughCoatingSigmaA))
+     =   (tag "roughcoating" 
+     ..> roughCoatingRefraction
+     .>  ("thickness", roughCoatingThickness)
+     .>  ("specularReflectance", roughCoatingSpecularReflectance)
+     .>  ("sigmaA", roughCoatingSigmaA))
      `appendChildren` roughCoatingChild
      `appendChildren` roughCoatingAlpha
 
@@ -865,9 +893,6 @@ instance ToElement Mask where
 data NonTransmission 
   = NTDiffuse         Diffuse
   | NTRoughDiffuse    RoughDiffuse
-  | NTDielectric      Dielectric
-  | NTThindielectric  ThinDielectric
-  | NTRoughdielectric RoughDielectric
   | NTConductor       Conductor
   | NTRoughconductor  RoughConductor
   | NTPlastic         Plastic
@@ -881,13 +906,10 @@ data NonTransmission
   
 instance Default NonTransmission
 instance ToElement NonTransmission where
-  toElement x = (tag "" # ("type", typeName)) `appendChildren` forwardToElement x where
+  toElement x = (tag "bsdf" # ("type", typeName)) `appendChildren` forwardToElement x where
     typeName = case x of
       NTDiffuse         {} -> "diffuse"
       NTRoughDiffuse    {} -> "roughdiffuse"
-      NTDielectric      {} -> "dielectric"
-      NTThindielectric  {} -> "thindielectric"
-      NTRoughdielectric {} -> "roughdielectric"
       NTConductor       {} -> "conductor"
       NTRoughconductor  {} -> "roughconductor"
       NTPlastic         {} -> "plastic"
